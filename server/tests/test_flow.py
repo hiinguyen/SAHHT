@@ -474,3 +474,18 @@ class QuietMethodTests(ServerCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PortInUseTests(unittest.TestCase):
+    def test_a_busy_port_reports_the_bind_error(self):
+        import errno
+        import socket
+        with tempfile.TemporaryDirectory() as tmp, socket.socket() as busy:
+            busy.bind(("127.0.0.1", 0))
+            busy.listen()
+            with self.assertRaises(OSError) as caught:
+                build_server(host="127.0.0.1", port=busy.getsockname()[1],
+                             db_path=":memory:", config_dir=tmp,
+                             version_map_path=ROOT / "data" / "game_config_version.json",
+                             request_log=Path(tmp) / "requests.jsonl")
+            self.assertEqual(caught.exception.errno, errno.EADDRINUSE)

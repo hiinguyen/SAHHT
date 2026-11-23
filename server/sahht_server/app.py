@@ -1,6 +1,7 @@
 """HTTP front end: routing, session guard, request log."""
 
 import argparse
+import errno
 import json
 import re
 import sys
@@ -187,7 +188,8 @@ class GameServer(ThreadingHTTPServer):
 def build_server(host, port, db_path, config_dir, version_map_path, request_log, scope_path=None):
     version_map = json.loads(Path(version_map_path).read_text(encoding="utf-8"))
     scope = Scope.load(scope_path or scope_module.DEFAULT_PATH)   # a bad file stops the start
-    server = GameServer((host, port), GameHandler)
+    # Bound only once services exist: a failed bind calls server_close(), which closes the store.
+    server = GameServer((host, port), GameHandler, bind_and_activate=False)
     server.services = Services(
         store=Store(str(db_path)),
         config_dir=Path(config_dir),
@@ -197,6 +199,12 @@ def build_server(host, port, db_path, config_dir, version_map_path, request_log,
         scope=scope,
     )
     server.request_log = RequestLog(request_log)
+    try:
+        server.server_bind()
+        server.server_activate()
+    except BaseException:
+        server.server_close()
+        raise
     return server
 
 
@@ -212,8 +220,14 @@ def main():
     ap.add_argument("--scope", default=str(root / "data" / "scope_2018.json"))
     args = ap.parse_args()
 
-    server = build_server(args.host, args.port, args.db, args.config_dir,
-                          args.version_map, args.request_log, args.scope)
+    try:
+        server = build_server(args.host, args.port, args.db, args.config_dir,
+                              args.version_map, args.request_log, args.scope)
+    except OSError as exc:
+        if exc.errno != errno.EADDRINUSE:
+            raise
+        sys.exit(f"port {args.port} on {args.host} is already in use by another process; "
+                 f"find it with: ss -ltnp 'sport = :{args.port}'")
     print(f"listening on http://{args.host}:{server.server_address[1]}/pub_abroad_vr", file=sys.stderr)
     try:
         server.serve_forever()
