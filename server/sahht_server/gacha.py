@@ -17,7 +17,6 @@ import time
 
 from .handlers import Request, Services, fail, ok
 from .rewards import Loot, grant, pay
-from .skills import LAST_HERO_ID
 
 LIMITED = 2
 UNLIMITED = -1            # gacha_all value the client shows without a count
@@ -34,7 +33,7 @@ def _hero_entries(svc: Services, pool: dict, key: str) -> list:
     characters = svc.configs.get("character_detail")
     return [(e[0], e[-1]) for e in pool.get(key, [])
             if isinstance(e, list) and len(e) >= 3 and str(e[0]) in characters
-            and e[0] <= LAST_HERO_ID and e[-1] > 0]
+            and svc.scope.card_in_scope(e[0]) and e[-1] > 0]
 
 
 def _entries(svc: Services, pool_id: str) -> tuple:

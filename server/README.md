@@ -14,6 +14,14 @@ python3 -I -m unittest discover -s tests -t .
 The server binds to loopback by default.
 It needs only the Python standard library.
 Config files are served from `../decompiled/apk/assets/config` (709 files, matching `data/game_config_version.json` exactly).
+The database schema is upgraded in place on start (`store.MIGRATIONS`, counted by `PRAGMA user_version`).
+
+## Content scope
+
+`data/scope_2018.json` decides what the server serves: every client API module, every view id the client can hide, the hero cut (`card_id_max` 38700) and the background calls answered quietly.
+The server refuses to start with a malformed file.
+`python3 -m tools.audit_scope` lists the client's modules, view ids, level-gated buttons and campaign cities against it; `--draft` prints a fresh draft.
+A view id counts as used when the Lua checks it (`isViewOpenByID`), lists it in a menu (`InReviewId = N`) or reads `in_review_N`; a view missing from `inreview.config` is shown by default, so every used id needs a row.
 
 ## Point the client at this server
 
@@ -46,7 +54,8 @@ Verified end to end on the emulator with a fresh account: register, the whole fi
 | Heroes | `cards.set_alignment` (POST), `cards.inherit`, `cards.card_skill_levelup`, `cards.card_evolution`, `cards.butcher` (POST) | formation and layout, experience transfer, skill levels, evolution, selling |
 | Recruiting | `gacha.get_all_gacha`, `gacha.get_gacha` | pools, unlock chains, prices and drop weights from `gacha.config`, pity score |
 | Shop and bag | `shop.open`, `shop.buy`, `item.use` | escalating prices, daily and weekly caps; boxes, stamina and exp-ball items |
-| Everything else under `/api/`, `/pay/`, `/dataosha/` | any | session-checked, answers `status: 0` with empty `data`, and is logged |
+| Feature gate | `user.main_page` `inreview`, every method without a handler | `data/scope_2018.json`: closed views are hidden; methods without a handler answer `error_not_open` (a popup), except background calls listed as `quiet`, which get a verified empty body, and `/dataosha/` analytics, which get an empty success |
+| Recharge | `payment.use_ticket`, `shop.vip_buy_step` | free: gold tickets fixed at 9999; coin bags grant coin (doubled on the first purchase of a pack) and VIP exp; packs with their own rewards (monthly and weekly cards) answer "Gói này chưa mở." |
 
 ## Protocol notes
 
@@ -56,7 +65,7 @@ Verified end to end on the emulator with a fresh account: register, the whole fi
 - New cards and items reach the client only through `data._client_cache_update` (`{"cards": {"cards": {"update": {...}, "remove": []}}, "item": {"items": {...}}}`); `remove` must always be present.
 - A few calls are POST with a form body (`cards.set_alignment`, `cards.butcher`), and some repeat a key (`metal=`, `card_id=`); handlers read `Request.lists` for those.
 - `loading` returns `game_config_version` at the top level, not inside `data`.
-- Every request is appended to `data/requests.jsonl` (passwords and tickets redacted). Lines with `"stub": true` are methods the client called that still need a real handler.
+- Every request is appended to `data/requests.jsonl` (passwords and tickets redacted). `"closed": true` marks a method the client called that has no handler yet, `"quiet": true` one answered with a recorded empty body.
 
 ## Not done
 
@@ -65,5 +74,5 @@ Verified end to end on the emulator with a fresh account: register, the whole fi
 - The 5-skill heroes' swap skills (slots 4-5, `cards.select_skill_index`) are not implemented; battles use slots 1-3.
 - Gacha has no free draws (`gacha_freetimes` is empty) and no lucky-energy bar.
 - The world achievement bar ("Điểm thu hồi" on the city and world map) stays at 0%: what earns `world_score` is not known.
-- Elite stages, arena, guilds, events and the rest are stubs; tapping an event button shows a caught Lua error from its empty reply.
+- Everything outside phase 0 (elite stages, arena, guilds, events and the rest) is closed: its button is hidden, or a tap shows "Tính năng chưa mở.". The order of the next phases is in `../roadmap.md`.
 - Only `is_use` 1 (box), 2 (stamina) and 19 (exp ball) items can be used.

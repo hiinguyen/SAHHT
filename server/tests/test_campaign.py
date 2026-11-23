@@ -1,5 +1,6 @@
 """Campaign ("Xuất chiến") protocol: world map, city grid, enemy preview, server-side battles."""
 
+import dataclasses
 import tempfile
 import unittest
 from pathlib import Path
@@ -33,6 +34,12 @@ class WorldMapTests(CampaignCase):
         self.assertEqual(data["hard_last_attack"]["chapter"], 1)  # read unguarded
         self.assertEqual((data["last_chapter"], data["last_city"]), ("1", "100"))
         self.assertEqual(data["all_city_regain_percent"], {"100": 0})
+
+    def test_cities_past_the_scope_are_left_out(self):
+        svc = self.server.services
+        narrow = dataclasses.replace(svc, scope=dataclasses.replace(svc.scope, city_order_max=0))
+        self.assertEqual(campaign._cities_in_order(svc), ["100"])
+        self.assertEqual(campaign._cities_in_order(narrow), [])
 
 
 class CityTests(CampaignCase):

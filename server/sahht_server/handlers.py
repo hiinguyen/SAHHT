@@ -15,6 +15,7 @@ from urllib.parse import unquote
 
 from .player import ensure_starter, guide_steps, seed_guides
 from .progression import Rules
+from .scope import Scope
 from .store import ATTACK_SLOTS, Store
 
 ACCOUNT_RE = re.compile(r"^[A-Za-z0-9_]{6,20}$")
@@ -67,6 +68,7 @@ class Services:
     version_map: dict
     all_config_version: str
     configs: ConfigCache
+    scope: Scope
 
 
 def ok(data=None, **top):
@@ -298,6 +300,9 @@ def user_main_page(req: Request, svc: Services, player: dict):
         # all_config_version with the stored one and forces a re-login (game_scene:777).
         # The configs are the APK's own and never change.
         "config_refresh": 0,
+        # Every view id the client must hide. game_data.updateInreviewByJsonData resets
+        # its list on each reply, so the whole list goes every time.
+        "inreview": svc.scope.closed_views(),
     })
 
 

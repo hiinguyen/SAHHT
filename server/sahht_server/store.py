@@ -94,6 +94,26 @@ CREATE TABLE IF NOT EXISTS counters (
 );
 """
 
+_PAYMENTS = """
+CREATE TABLE IF NOT EXISTS payments (
+    order_id   TEXT PRIMARY KEY,     -- the client's cpOrderId: a resend is not paid twice
+    player_id  INTEGER NOT NULL REFERENCES players(id),
+    charge_id  TEXT NOT NULL,        -- charge.config key
+    created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS payments_player ON payments(player_id, charge_id);
+"""
+
+# Applied in order; PRAGMA user_version is how many are applied. Migration 1 is the
+# original schema (IF NOT EXISTS), so a database from before migrations is upgraded in
+# place. Never edit an applied migration: append a new one.
+MIGRATIONS = (_SCHEMA, _PAYMENTS)
+
+
+def _statements(script: str) -> list[str]:
+    """executescript() commits on its own, so migrations run statement by statement."""
+    return [s.strip() for s in script.split(";") if s.strip()]
+
 
 def _hash_password(passwd: str, salt: bytes) -> bytes:
     return hashlib.scrypt(passwd.encode(), salt=salt, n=2**14, r=8, p=1)
@@ -111,8 +131,27 @@ class Store:
         self._db.row_factory = sqlite3.Row
         self._lock = threading.RLock()
         self._depth = 0
+        try:
+            self._migrate()
+        except BaseException:
+            self._db.close()
+            raise
+
+    def close(self) -> None:
         with self._lock:
-            self._db.executescript(_SCHEMA)
+            self._db.close()
+
+    def _migrate(self) -> None:
+        with self._lock:
+            version = self._db.execute("PRAGMA user_version").fetchone()[0]
+            if version > len(MIGRATIONS):
+                raise RuntimeError(f"database schema {version} is newer than this server "
+                                   f"({len(MIGRATIONS)}); refusing to open it")
+            for number in range(version + 1, len(MIGRATIONS) + 1):
+                with self.transaction():
+                    for statement in _statements(MIGRATIONS[number - 1]):
+                        self._db.execute(statement)
+                    self._db.execute(f"PRAGMA user_version = {number}")
 
     @contextmanager
     def transaction(self):
@@ -420,6 +459,22 @@ class Store:
                 "INSERT INTO building_steps(player_id, building_id, steps_won) VALUES (?, ?, ?) "
                 "ON CONFLICT(player_id, building_id) DO UPDATE SET steps_won = excluded.steps_won",
                 (_pid(uid), building_id, steps_won))
+
+    # ---- payments (free recharge) ------------------------------------------------
+
+    def payment_exists(self, order_id: str) -> bool:
+        return self._one("SELECT 1 FROM payments WHERE order_id = ?", (order_id,)) is not None
+
+    def record_payment(self, uid: str, order_id: str, charge_id: str, now: int) -> None:
+        with self.transaction():
+            self._db.execute(
+                "INSERT INTO payments(order_id, player_id, charge_id, created_at) VALUES (?, ?, ?, ?)",
+                (order_id, _pid(uid), str(charge_id), now))
+
+    def payment_counts(self, uid: str) -> dict:
+        return {r["charge_id"]: r["n"] for r in self._all(
+            "SELECT charge_id, COUNT(*) AS n FROM payments WHERE player_id = ? GROUP BY charge_id",
+            (_pid(uid),))}
 
 
 def _player(row) -> dict | None:

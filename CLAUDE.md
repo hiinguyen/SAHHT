@@ -18,8 +18,8 @@ The goal so far: a private server the real client can log into and play the firs
 | `server/data/` | `game_config_version.json` (copied from the APK), `sahht.db` (SQLite, gitignored), `requests.jsonl` (request log, gitignored). |
 | `server/build/` | Patched APK, screenshots, logs (gitignored). |
 
-Git: one initial commit; `decompiled/`, `server/` and the APK are untracked.
-Nothing has been committed. Commit only when the user asks.
+Git: `server/` (minus gitignored data and build output), the decompiled notes and tools, `CLAUDE.md`, `roadmap.md` and `docs/` are tracked; the APK and the extracted client are not. Remote `origin` is `github.com/hiinguyen/SAHHT`.
+Commit only when the user asks.
 
 ## Client facts that matter
 
@@ -79,6 +79,9 @@ Nothing has been committed. Commit only when the user asks.
 - Enemies are looked up in `enemy_soldier_<city>.config` first, then `enemy_detail.config`.
 - Never send a `pre_battle` frame with skills in it: the client then loads `ccbResources/pre_battle_bg_res.plist`, which this APK lacks, and the native engine segfaults. Pre-battle skills are sent as ordinary `skill` frames.
 - A `skill` frame plays `skill_effect/<hero animation>/<name>.lua`; an unknown name is silently skipped. Status art is `add_buff {src, name}` with `skill_effect/buff/<name>.lua`.
+- `user.main_page` sends `inreview`: every view id to hide, the whole list every time (`game_data.updateInreviewByJsonData` resets it on each reply). A view id missing from `inreview.config` is shown by default. `active_switch` is never read by the client.
+- A reply with an error status and a `msg` shows a popup and skips the screen's callback; `error_not_open` is used for closed features.
+- Recharge: the client pays in gold tickets (`user_status.ticket`, fixed at 9999); `cpOrderId` is `<uid>_<server>_<pack>_<time>_<channel>_<random>`. `shop.vip_buy_step` `double_pay` is an array of numeric pack ids; `month_award`/`week_award` must be `2` or the client shows a local tip instead of calling `payment.use_ticket`.
 - When a Lua error happens inside a screen, the log line is `SHHHT enterUi <scene> failed: ...` or `LUA ERROR: ...`; after a swallowed error the client may silently return to the login scene.
 
 ## Server architecture (`server/`)
@@ -86,12 +89,16 @@ Nothing has been committed. Commit only when the user asks.
 Python 3 standard library only (no pip installs).
 
 - `sahht_server/app.py`: `ThreadingHTTPServer`, routing by the first path segment that is a known service, session guard, JSONL request log (passwords and tickets redacted), `build_server()` and the CLI.
-  Unknown `/api/`, `/pay/`, `/dataosha/` methods get `status 0` with empty `data` and are logged with `"stub": true`; unknown `/login/` methods get `refused`.
+  A session method without a handler gets the body recorded in the scope's `quiet` list (logged `"quiet": true`), an empty success for `/dataosha/` analytics, or else `error_not_open` "Tính năng chưa mở." (logged `"closed": true`); unknown `/login/` methods get `refused`.
+  `GameServer.server_close()` also closes the store.
+- `sahht_server/scope.py` + `data/scope_2018.json`: the content scope (modules with phase and open flag, view ids, `card_id_max` 38700, `city_order_max`, `quiet` bodies with evidence), validated at startup. `tools/audit_scope.py` inventories the client against it (`--draft` for a fresh draft); a view id is used when the Lua checks it (`isViewOpenByID`), lists it in a menu (`InReviewId = N`, `game_function_pop.lua`) or reads `in_review_N`.
+- `sahht_server/payment.py`: free recharge (`payment.use_ticket`, `shop.vip_buy_step`), table `payments` keyed by the client's order id.
 - `sahht_server/handlers.py`: login, boot and roster handlers, `user_status`, `ConfigCache` (loads `<name>.config` once, plus memoized derived indexes; uses an `RLock` because builders call `get()`), `card_document`, starter heroes `(5300, 100, 200)`.
 - `sahht_server/campaign.py`: the four `private_city.*` handlers, city grid packing (`CityPlan`), unlock order, building battle units.
 - `sahht_server/battle.py` + `battle_unit.py`: the battle engine (skills, buffs, controls, DoTs, revives) and its frames. `skills.py` resolves a skill tier against `data/skill_specs.json`; `skill_spec.py` is the spec schema. Rules and the spec DSL: `server/SKILLS.md`.
 - `data/skill_specs.json`: hand-curated spec per base skill of every hero up to card 38700. `data/skill_anims.json`: client skill scripts per animation, regenerated with `python3 -m tools.build_skill_anims`.
-- `sahht_server/store.py`: SQLite data only, no game rules; `transaction()` makes multi-step changes atomic. Tables `accounts`, `players` (uid = id + 10000, level), `cards` (`step` = evolution, `slot` 0-4 attack, 5-9 bench), `card_skills`, `player_state` (stamina, exp inside the level), `wallet`, `items`, `guide`, `cleared_buildings`, `building_steps`, `counters` (gacha draws, shop purchases with a daily/weekly period, formation, starter kit).
+- `sahht_server/store.py`: SQLite data only, no game rules; `transaction()` makes multi-step changes atomic. Tables `accounts`, `players` (uid = id + 10000, level), `cards` (`step` = evolution, `slot` 0-4 attack, 5-9 bench), `card_skills`, `player_state` (stamina, exp inside the level), `wallet`, `items`, `guide`, `cleared_buildings`, `building_steps`, `counters` (gacha draws, shop purchases with a daily/weekly period, formation, starter kit), `payments`.
+  Schema changes are appended to `MIGRATIONS` (applied in order, counted by `PRAGMA user_version`); never edit an applied migration.
 - `sahht_server/progression.py`: rules from the configs (player and card levels, card documents with evolution stats and skill tiers, combat power). `player.py`: starter kit, player exp, tutorial teams, `user_status`. `rewards.py`: `[type, id, count]` rewards, weighted rolls, boxes, `grant()` and `_client_cache_update`.
 - `sahht_server/cards.py` (formation, inherit, skill level-up, evolution, selling), `gacha.py`, `shop.py` (shop and `item.use`). A handler raises `handlers.Refused` inside a transaction to roll back and answer an error.
 - `tools/patch_apk.py`: repoints the client at a URL, rebuilds the APK without the old signature, zipaligns and signs with `~/.android/debug.keystore`.
@@ -102,7 +109,8 @@ Python 3 standard library only (no pip installs).
 
 ```
 cd server
-python3 -I -m unittest discover -s tests -t .          # 101 tests, about 40 s (scrypt dominates)
+python3 -I -m unittest discover -s tests -t .          # 147 tests, about 50 s (scrypt dominates)
+python3 -m tools.audit_scope                            # client modules, views, buttons, cities vs data/scope_2018.json (--draft)
 python3 -m sahht_server.skill_spec data/skill_specs.json   # validate the skill specs
 python3 -m sahht_server.app --port 8080                 # loopback only by default
 TMPDIR=$PWD/build/tmp python3 -m tools.patch_apk --url http://10.0.2.2:8080/pub_abroad_vr
@@ -150,12 +158,13 @@ Done and verified on the emulator:
 - Register, login, server list, config check, hot-update check, enter game.
 - The whole first tutorial with a fresh account: naming, first battle (level-up popup, player and card exp bars), city 100 recovered, recruiting, formation saved by POST, city 101, skipping a tutorial team.
 - Main scene combat power, the shop (buying with coin), the gacha pool chain.
+- Phase 0 (2026-11-23): out-of-scope buttons hidden, closed features answer "Tính năng chưa mở.", free recharge (coin bag, VIP level, monthly card refused with "Gói này chưa mở.").
 
 Not done (see also `server/README.md`):
 - Equipment, gems, pets and other gear; equipment rewards are not granted and tutorial team 2 (equipment) must be skipped.
 - Enemy skills (900xx), element damage, leader skills, 5-skill heroes' swap skills, gacha free draws.
 - The "Điểm thu hồi" achievement bar (`world_level`/`world_score`) stays at 0%; its source is unknown.
-- Elite stages, arena, guilds and events are stubs; event buttons log a caught Lua error from the empty reply.
+- Everything outside phase 0 is closed through `data/scope_2018.json` (hidden or "Tính năng chưa mở.").
 - Client-side unknowns: `.sam` animation format, 56 double-encrypted Lua files, 5 LuaJIT bytecode files, `classes.dex` not decompiled.
 
-Good next steps: equipment (`equip`, `equip_pos`, `factory.equip_levelup`) so tutorial team 2 can be played; enemy skill specs; then the next stub the request log shows the user hitting most.
+Good next steps: phase 1 of `docs/superpowers/specs/2026-11-23-roadmap-2018.md` (daily loop); when a feature is done, open its module in `data/scope_2018.json` and check its views on the emulator.

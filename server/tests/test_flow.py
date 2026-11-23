@@ -111,6 +111,22 @@ FIXTURE_CONFIGS = {
                 "sell_time": "", "shop_reward": [[22, 3, 1]], "show_level": [1, 300], "im_use": 0},
     },
     "box": {"7": [{"num": 1, "reward": [[9, 0, 250, 3]]}, {"num": 0, "reward": []}]},
+    # Recharge packs: 3 a plain coin bag, 4 doubles the first time, 5 can be bought once,
+    # 1 is a monthly card (open_gift), 22 is hidden (is_show 0).
+    "charge": {
+        "1": {"name": "Thẻ tháng", "coin": 0, "gift_coin": 0, "is_double": 0, "buy_times": 2,
+              "vip_exp": 500, "is_show": 1, "open_gift": 2, "price": 50000},
+        "3": {"name": "Túi Xu 220", "coin": 220, "gift_coin": 0, "is_double": 0, "buy_times": 0,
+              "vip_exp": 220, "is_show": 1, "open_gift": 0, "price": 20000},
+        "4": {"name": "Túi Xu đôi", "coin": 550, "gift_coin": 50, "is_double": 1, "buy_times": 0,
+              "vip_exp": 550, "is_show": 1, "open_gift": 0, "price": 50000},
+        "5": {"name": "Một lần", "coin": 10, "gift_coin": 0, "is_double": 0, "buy_times": 1,
+              "vip_exp": 10, "is_show": 1, "open_gift": 0, "price": 10000},
+        "22": {"name": "Ẩn", "coin": 999, "gift_coin": 0, "is_double": 0, "buy_times": 0,
+               "vip_exp": 0, "is_show": 0, "open_gift": 0, "price": 20000},
+    },
+    # need_exp of row L is the total vip_exp needed to reach L + 1.
+    "vip": {"0": {"need_exp": 200}, "1": {"need_exp": 1200}, "2": {"need_exp": 3200}},
     # Each layout leaves one of the six cells (a..f) empty.
     "formation": {str(n): {f"position_{cell}": (0 if i == n - 1 else 1 + i - (i > n - 1))
                            for i, cell in enumerate("abcdef")} for n in (1, 5)},
@@ -132,10 +148,15 @@ class ServerCase(unittest.TestCase):
             config_dir=self.config_dir,
             version_map_path=ROOT / "data" / "game_config_version.json",
             request_log=self.log_path,
+            scope_path=self.scope_path(),
         )
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
         self.port = self.server.server_address[1]
+
+    def scope_path(self):
+        """The scope file the server loads (None: data/scope_2018.json). self.tmp exists here."""
+        return None
 
     def tearDown(self):
         self.server.shutdown()
@@ -390,15 +411,38 @@ class GameApiTests(ServerCase):
         _, body = self.api("cards.open", "forged", self.uid)
         self.assertEqual(body["status"], "error_need_login")
 
-    def test_unknown_api_method_gets_empty_success_and_is_logged(self):
+    def log_lines(self, method):
+        return [l for l in map(json.loads, self.log_path.read_text().splitlines())
+                if l.get("method") == method]
+
+    def test_unimplemented_api_method_is_closed_with_a_popup_and_logged(self):
         _, body = self.api("arena.battle", self.rans, self.uid, foo="1")
-        self.assertEqual(body["status"], 0)
-        self.assertEqual(body["data"], {})
-        lines = [json.loads(l) for l in self.log_path.read_text().splitlines()]
-        hits = [l for l in lines if l.get("method") == "arena.battle"]
-        self.assertEqual(len(hits), 1)
-        self.assertTrue(hits[0]["stub"])
-        self.assertEqual(hits[0]["params"]["foo"], "1")
+        self.assertEqual(body["status"], "error_not_open")
+        self.assertEqual(body["msg"], "Tính năng chưa mở.")
+        self.assertIn("user_status", body)
+        [line] = self.log_lines("arena.battle")
+        self.assertTrue(line["closed"])
+        self.assertNotIn("stub", line)
+        self.assertEqual(line["params"]["foo"], "1")
+
+    def test_client_analytics_are_answered_quietly(self):
+        _, body = self.get(f"{BASE}/dataosha/", method="rank", rans=self.rans, user_token=self.uid)
+        self.assertEqual((body["status"], body["data"]), (0, {}))
+        [line] = self.log_lines("rank")
+        self.assertTrue(line["quiet"])
+
+    def test_implemented_method_is_logged_without_flags(self):
+        self.api("cards.open", self.rans, self.uid)
+        [line] = self.log_lines("cards.open")
+        self.assertNotIn("quiet", line)
+        self.assertNotIn("closed", line)
+
+    def test_main_page_hides_every_closed_view(self):
+        _, body = self.api("user.main_page", self.rans, self.uid)
+        closed = body["data"]["inreview"]
+        self.assertEqual(closed, self.server.services.scope.closed_views())
+        self.assertEqual(closed, sorted(closed))
+        self.assertTrue(all(isinstance(v, int) for v in closed))
 
     def test_request_log_never_stores_passwords_or_tickets(self):
         self.login_api("login", account="player_one", passwd="secret12")
@@ -406,6 +450,26 @@ class GameApiTests(ServerCase):
         text = self.log_path.read_text()
         self.assertNotIn("secret12", text)
         self.assertNotIn(self.rans, text)
+
+
+class QuietMethodTests(ServerCase):
+    """A background call listed in the scope's `quiet` gets its recorded empty body."""
+
+    def scope_path(self):
+        from sahht_server.scope import DEFAULT_PATH
+        raw = json.loads(DEFAULT_PATH.read_text(encoding="utf-8"))
+        raw["quiet"]["arena.poll_test"] = {"body": {"list": []}, "evidence": "test"}
+        path = Path(self.tmp.name) / "scope.json"
+        path.write_text(json.dumps(raw, ensure_ascii=False), encoding="utf-8")
+        return path
+
+    def test_quiet_method_gets_its_body(self):
+        data = self.register()
+        _, body = self.api("arena.poll_test", data["rand_str"], data["uid"])
+        self.assertEqual((body["status"], body["data"]), (0, {"list": []}))
+        lines = [json.loads(l) for l in self.log_path.read_text().splitlines()]
+        [line] = [l for l in lines if l["method"] == "arena.poll_test"]
+        self.assertTrue(line["quiet"])
 
 
 if __name__ == "__main__":

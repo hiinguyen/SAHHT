@@ -1,0 +1,1401 @@
+{
+ "card_id_max": 38700,
+ "city_order_max": null,
+ "modules": {
+  "active": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: khung sự kiện giới hạn thời gian (game_activity_new_pop.lua), gồm sự kiện nạp và quay thưởng"
+  },
+  "arena": {
+   "phase": 6,
+   "open": false,
+   "reason": "đấu trường: game_ui/game_arena.lua, game_ui/game_pk.lua; lộ trình giai đoạn 6"
+  },
+  "association": {
+   "phase": 6,
+   "open": false,
+   "reason": "bang hội: ui/guild/control.lua; lộ trình giai đoạn 6"
+  },
+  "badge": {
+   "phase": 5,
+   "open": false,
+   "reason": "huy hiệu: game_pop/game_badge_adv_pop.lua; lộ trình giai đoạn 5"
+  },
+  "bandit": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: sự kiện 满天星 (game_ui/game_sky_star.lua)"
+  },
+  "battle": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: chỉ có battle.start (thử nghiệm) và battle.challenge_info (kho báu), không màn hình nào dùng"
+  },
+  "bigholiday": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: sự kiện hoàn xu (game_pop/game_bigholiday_pop.lua)"
+  },
+  "book_exchange": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: đổi thưởng theo bộ sưu tập (game_ui/game_superillustration_scene.lua), thêm sau 2018"
+  },
+  "bounty_order": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: 赏金令, vé nhiệm vụ theo mùa (game_ui/game_bounty_main.lua)"
+  },
+  "bowl": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: 聚宝盆 quay thưởng (game_pop/game_cornucopia_pop.lua)"
+  },
+  "card": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: chỉ có card.set_alignment (phụ hồn), không màn hình nào gọi"
+  },
+  "card_collection": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: sự kiện đổi thẻ bài giới hạn thời gian (game_pop/game_cardCollection_pop.lua)"
+  },
+  "card_develop": {
+   "phase": 5,
+   "open": false,
+   "reason": "phát triển tướng: game_pop/game_trainning.lua; lộ trình giai đoạn 5"
+  },
+  "cards": {
+   "phase": 0,
+   "open": true
+  },
+  "celebration": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: sự kiện 盛典, gồm nạp và phong bao (game_pop/game_carnival_pop.lua)"
+  },
+  "clone_lane": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: sự kiện 克隆车道 (game_ui/game_cloneLane_main.lua)"
+  },
+  "code": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: nhập mã kích hoạt (game_ui/game_activation.lua), công cụ vận hành ngoài lộ trình"
+  },
+  "commander": {
+   "phase": 2,
+   "open": false,
+   "reason": "thống soái: game_ui/game_ability_commander.lua; lộ trình giai đoạn 2"
+  },
+  "config": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: config.all_config không màn hình nào gọi; client tải config qua service /config/"
+  },
+  "crowdfunding": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: quay thưởng 一元 (game_pop/game_oneYuanRaffle.lua)"
+  },
+  "daily_award": {
+   "phase": 1,
+   "open": false,
+   "reason": "điểm danh và quà ngày: game_ui/game_daily_sign.lua; lộ trình giai đoạn 1"
+  },
+  "diamond_wheel": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: liên server, sự kiện nạp/quay thưởng hoặc SDK"
+  },
+  "egg": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: đập trứng vàng (game_pop/game_golden_eggs.lua)"
+  },
+  "enemy": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: danh sách kẻ thù của đấu trường và áp tải (game_ui/game_enemylist_scene.lua)"
+  },
+  "equip": {
+   "phase": 2,
+   "open": false,
+   "reason": "trang bị: game_ui/equip_enchanting.lua, game_ui/game_equip_forge.lua; lộ trình giai đoạn 2"
+  },
+  "equip_gacha": {
+   "phase": 2,
+   "open": false,
+   "reason": "chiêu mộ trang bị: game_ui/game_gacha_equip.lua; lộ trình giai đoạn 2"
+  },
+  "escort": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: áp tải 押镖 (game_ui/game_dart_main.lua)"
+  },
+  "fable_beast": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: thần thú 召唤兽 (game_ui/game_combiner_summon.lua), thêm sau 2018"
+  },
+  "factory": {
+   "phase": 2,
+   "open": false,
+   "reason": "xưởng chế tạo và nâng trang bị: game_ui/equipment_strengthen.lua; lộ trình giai đoạn 2"
+  },
+  "fire_chess": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: liên server, sự kiện nạp/quay thưởng hoặc SDK"
+  },
+  "foundation": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: quỹ nạp (game_ui/fund_main_scene.lua)"
+  },
+  "friend": {
+   "phase": 1,
+   "open": false,
+   "reason": "bạn bè: game_ui/game_friend_scene.lua; lộ trình giai đoạn 1"
+  },
+  "funeng": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: cuộc thi 赋能 (game_pop/game_empowerContest_index.lua)"
+  },
+  "gacha": {
+   "phase": 0,
+   "open": true
+  },
+  "gem": {
+   "phase": 2,
+   "open": false,
+   "reason": "đá quý: game_ui/gem_system_synthesis.lua, game_ui/gem_system_strengthen_scene.lua; lộ trình giai đoạn 2"
+  },
+  "gem_fate": {
+   "phase": 2,
+   "open": false,
+   "reason": "đá quý định mệnh gắn trang bị: game_ui/game_upFateGem_main.lua; lộ trình giai đoạn 2"
+  },
+  "gift": {
+   "phase": 1,
+   "open": false,
+   "reason": "rương thành phố trên bản đồ nhỏ: game_ui/game_treasure_chest.lua; lộ trình giai đoạn 1"
+  },
+  "god_arena": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: đấu trường thần giới liên server (game_ui/game_godfield_pvp.lua)"
+  },
+  "god_field": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: liên server, sự kiện nạp/quay thưởng hoặc SDK"
+  },
+  "god_field_escort": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: liên server, sự kiện nạp/quay thưởng hoặc SDK"
+  },
+  "god_field_temple": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: liên server, sự kiện nạp/quay thưởng hoặc SDK"
+  },
+  "god_shot": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: sự kiện bắn cung (game_ui/game_shooting.lua)"
+  },
+  "god_stone": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: thánh thạch 圣石 (game_ui/ui_saint_stone_main.lua), thêm sau 2018"
+  },
+  "gringotts": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: đầu tư 古灵阁 (game_ui/game_gringotts_scene.lua), sự kiện nạp"
+  },
+  "guild_gvg": {
+   "phase": 6,
+   "open": false,
+   "reason": "bang chiến: game_ui/game_gvg_war.lua; lộ trình giai đoạn 6"
+  },
+  "guild_high_war": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: liên server, sự kiện nạp/quay thưởng hoặc SDK"
+  },
+  "guild_robbery": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: chiếm tinh cầu của bang (game_ui/ui_guild_star_main.lua), thêm sau 2018"
+  },
+  "highway": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: áp tải thần giới liên server (game_ui/game_god_escort_bet.lua)"
+  },
+  "homeland": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: nhà vườn 家园 (game_ui/game_homeLand_main.lua), thêm sau 2018"
+  },
+  "idol_festival": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: liên server, sự kiện nạp/quay thưởng hoặc SDK"
+  },
+  "invite_code": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: mã mời (game_pop/game_invitation_pop.lua), sự kiện mời người chơi"
+  },
+  "item": {
+   "phase": 0,
+   "open": true
+  },
+  "jigsaw": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: liên server, sự kiện nạp/quay thưởng hoặc SDK"
+  },
+  "king": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: quà người chơi cũ quay lại (game_pop/ui_oldplayer_pop.lua)"
+  },
+  "laboratory": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: 研究所 nuôi tướng (game_ui/game_hero_culture_scene.lua), thêm sau 2018"
+  },
+  "large_roulette": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: liên server, sự kiện nạp/quay thưởng hoặc SDK"
+  },
+  "large_super_all": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: liên server, sự kiện nạp/quay thưởng hoặc SDK"
+  },
+  "large_super_rich": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: liên server, sự kiện nạp/quay thưởng hoặc SDK"
+  },
+  "leader_skill": {
+   "phase": 3,
+   "open": false,
+   "reason": "kỹ năng đội trưởng: game_ui/skills_practice_scene.lua; lộ trình giai đoạn 3"
+  },
+  "limit_time_war": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: chiến tranh giới hạn thời gian (game_pop/game_limit_time_war_pop.lua)"
+  },
+  "luck_lottery": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: liên server, sự kiện nạp/quay thưởng hoặc SDK"
+  },
+  "magic_school": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: sự kiện 火焰杯 (game_ui/ui_firecup_scene.lua)"
+  },
+  "maze": {
+   "phase": 4,
+   "open": false,
+   "reason": "hồi lang 回廊: game_pop/open_door_cloister_detail_pop.lua; lộ trình giai đoạn 4"
+  },
+  "medal": {
+   "phase": 5,
+   "open": false,
+   "reason": "huân chương: game_ui/game_medal_refining.lua; lộ trình giai đoạn 5"
+  },
+  "mine": {
+   "phase": 4,
+   "open": false,
+   "reason": "mỏ đấu giá: game_pop/game_activity_new_pop.lua; lộ trình giai đoạn 4"
+  },
+  "mining": {
+   "phase": 4,
+   "open": false,
+   "reason": "đào mỏ: game_ui/game_activity_mine_new.lua; lộ trình giai đoạn 4"
+  },
+  "monopoly": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: liên server, sự kiện nạp/quay thưởng hoặc SDK"
+  },
+  "month_foundation": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: quỹ tháng (game_pop/game_month_fund_pop.lua), sự kiện nạp"
+  },
+  "new_fight_forever": {
+   "phase": 4,
+   "open": false,
+   "reason": "chế độ PvE vô tận: game_ui/game_nightmare_main.lua; lộ trình giai đoạn 4"
+  },
+  "new_guild_fight": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: bang chiến toàn máy chủ (game_ui/game_server_guildbattle_battle.lua), liên server"
+  },
+  "new_rocker": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: đổi tướng chủ đề (game_ui/game_hero_legend.lua), quay thưởng"
+  },
+  "new_roulette": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: liên server, sự kiện nạp/quay thưởng hoặc SDK"
+  },
+  "newstar": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: mời người chơi mới (game_pop/game_new_player_invite.lua)"
+  },
+  "nightmare_tower": {
+   "phase": 4,
+   "open": false,
+   "reason": "tháp ác mộng: game_pop/game_nightmare_enemy_pop.lua; lộ trình giai đoạn 4"
+  },
+  "normal_exchange": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: đổi thưởng sự kiện nạp (game_ui/game_charge_active.lua)"
+  },
+  "notify": {
+   "phase": 1,
+   "open": false,
+   "reason": "thư và thông báo: game_ui/game_notify_message_scene.lua; lộ trình giai đoạn 1"
+  },
+  "offline_dispatch": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: phái cử tướng (game_ui/game_dispatch_main.lua), thêm sau 2018"
+  },
+  "omni_exchange": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: đổi thưởng sự kiện (game_ui/game_exchange_scene2.lua)"
+  },
+  "one_piece": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: sự kiện 海贼王 (game_ui/game_seapoacher.lua)"
+  },
+  "open_door": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: sự kiện mở cửa (game_ui/open_door_main_scene.lua)"
+  },
+  "overlord_meal": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: sự kiện bữa ăn miễn phí (game_pop/game_new_free_dinner.lua)"
+  },
+  "pagoda": {
+   "phase": 4,
+   "open": false,
+   "reason": "bảo tháp: game_ui/game_pagoda_scene.lua; lộ trình giai đoạn 4"
+  },
+  "pay_award": {
+   "phase": 1,
+   "open": false,
+   "reason": "quà nạp tuần/tháng: game_pop/game_month_gift_pop.lua; lộ trình giai đoạn 1"
+  },
+  "pay_sign": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: điểm danh trả phí (game_pop/game_superDaily_pop.lua)"
+  },
+  "payment": {
+   "phase": 0,
+   "open": true
+  },
+  "pets": {
+   "phase": 5,
+   "open": false,
+   "reason": "thú nuôi: game_pop/game_pet_strengthen_pop.lua; lộ trình giai đoạn 5"
+  },
+  "private_city": {
+   "phase": 0,
+   "open": true
+  },
+  "public_city": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: thành phố công cộng nhiều người (game_ui/game_neutral_city_map.lua), liên server"
+  },
+  "public_land": {
+   "phase": 4,
+   "open": false,
+   "reason": "vùng đất vô chủ: game_ui/game_neutral_city_map_new.lua; lộ trình giai đoạn 4"
+  },
+  "pyramid": {
+   "phase": 4,
+   "open": false,
+   "reason": "kim tự tháp: game_ui/game_pyramid_scene.lua; lộ trình giai đoạn 4"
+  },
+  "race": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: sự kiện chạy đua (game_pop/ui_yato_running_main.lua)"
+  },
+  "raiders": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: quay thưởng 夺宝奇兵 (game_pop/game_indiana_pop.lua)"
+  },
+  "recall_reward": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: nhiệm vụ người chơi cũ quay lại (game_pop/ui_oldplayer_pop.lua)"
+  },
+  "recharge_package": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: sự kiện nạp 累充 (game_ui/game_charge_active.lua)"
+  },
+  "red_bag": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: liên server, sự kiện nạp/quay thưởng hoặc SDK"
+  },
+  "redpacket": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: liên server, sự kiện nạp/quay thưởng hoặc SDK"
+  },
+  "reward": {
+   "phase": 1,
+   "open": false,
+   "reason": "nhiệm vụ ngày và thành tựu: game_pop/game_daily_wanted.lua; lộ trình giai đoạn 1"
+  },
+  "roulette": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: liên server, sự kiện nạp/quay thưởng hoặc SDK"
+  },
+  "sacrifice": {
+   "phase": 5,
+   "open": false,
+   "reason": "hiến tế tướng: game_ui/game_offering_sacrifices.lua; lộ trình giai đoạn 5"
+  },
+  "school": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: trường huấn luyện tướng (game_ui/game_school_new.lua), hệ thống ngoài lộ trình"
+  },
+  "search_treasure": {
+   "phase": 4,
+   "open": false,
+   "reason": "kho báu Roger: game_ui/game_pirate_map.lua; lộ trình giai đoạn 4"
+  },
+  "server_bandit": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: liên server, sự kiện nạp/quay thưởng hoặc SDK"
+  },
+  "server_bounty_order": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: liên server, sự kiện nạp/quay thưởng hoặc SDK"
+  },
+  "server_card_collection": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: liên server, sự kiện nạp/quay thưởng hoặc SDK"
+  },
+  "server_clone_lane": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: liên server, sự kiện nạp/quay thưởng hoặc SDK"
+  },
+  "server_diamond_wheel": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: liên server, sự kiện nạp/quay thưởng hoặc SDK"
+  },
+  "server_exchange": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: liên server, sự kiện nạp/quay thưởng hoặc SDK"
+  },
+  "server_foundation": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: liên server, sự kiện nạp/quay thưởng hoặc SDK"
+  },
+  "server_group": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: liên server, sự kiện nạp/quay thưởng hoặc SDK"
+  },
+  "server_limit_hero": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: liên server, sự kiện nạp/quay thưởng hoặc SDK"
+  },
+  "server_magic_school": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: liên server, sự kiện nạp/quay thưởng hoặc SDK"
+  },
+  "server_one_piece": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: liên server, sự kiện nạp/quay thưởng hoặc SDK"
+  },
+  "server_overlord_meal": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: liên server, sự kiện nạp/quay thưởng hoặc SDK"
+  },
+  "server_richman": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: liên server, sự kiện nạp/quay thưởng hoặc SDK"
+  },
+  "server_roulette": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: liên server, sự kiện nạp/quay thưởng hoặc SDK"
+  },
+  "server_super_active": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: liên server, sự kiện nạp/quay thưởng hoặc SDK"
+  },
+  "servers_fight": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: liên server, sự kiện nạp/quay thưởng hoặc SDK"
+  },
+  "shop": {
+   "phase": 0,
+   "open": true
+  },
+  "snowman": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: sự kiện Giáng sinh (game_pop/ui_Chrismas_main.lua)"
+  },
+  "soul": {
+   "phase": 5,
+   "open": false,
+   "reason": "linh hồn: game_ui/game_soul_gacha.lua; lộ trình giai đoạn 5"
+  },
+  "storehouse": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: kho chứa (game_pop/storeHouseStore.lua), hệ thống ngoài lộ trình"
+  },
+  "super_active": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: sự kiện 赛亚人 (game_ui/game_saiya_active.lua)"
+  },
+  "super_luck": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: liên server, sự kiện nạp/quay thưởng hoặc SDK"
+  },
+  "super_player": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: sự kiện 超级大玩家 (game_pop/ui_super_player_main.lua)"
+  },
+  "super_tycoon_active": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: liên server, sự kiện nạp/quay thưởng hoặc SDK"
+  },
+  "talent_skill": {
+   "phase": 5,
+   "open": false,
+   "reason": "thiên phú tướng: game_ui/ui_talent_main.lua; lộ trình giai đoạn 5"
+  },
+  "talisman": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: pháp bảo (game_ui/game_magic_list.lua), thêm sau 2018"
+  },
+  "team_boss": {
+   "phase": 6,
+   "open": false,
+   "reason": "boss đồng đội: game_ui/game_team_boss_info.lua; lộ trình giai đoạn 6"
+  },
+  "team_fight": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: nhiệm vụ đồng đội (game_ui/game_TeamTask_main.lua), liên server"
+  },
+  "team_pk": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: báo cáo đấu đội (team_pk.see_team_pk_log), liên server"
+  },
+  "team_pk_new": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: đấu đội thần giới (game_ui/game_godfield_newFenzheng.lua), liên server"
+  },
+  "team_raid": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: đột kích đồng đội (game_ui/game_teamRaid_main.lua), liên server"
+  },
+  "toy": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: sự kiện gắp thú (game_pop/game_zhuawawa_pop.lua)"
+  },
+  "universe_arena": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: liên server, sự kiện nạp/quay thưởng hoặc SDK"
+  },
+  "universe_hero": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: liên server, sự kiện nạp/quay thưởng hoặc SDK"
+  },
+  "user": {
+   "phase": 0,
+   "open": true
+  },
+  "vip": {
+   "phase": 1,
+   "open": false,
+   "reason": "mua điểm hành động và năng lượng theo VIP: game_pop/game_normal_tips_pop.lua; lộ trình giai đoạn 1"
+  },
+  "vip_reward": {
+   "phase": 1,
+   "open": false,
+   "reason": "quà VIP theo ngày: game_pop/game_fuli_subui_VIPReward.lua; lộ trình giai đoạn 1"
+  },
+  "wanted": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: truy nã 通缉 (game_ui/game_activity_tongji_scene.lua), hệ thống ngoài lộ trình"
+  },
+  "world_boss": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: boss thế giới (game_ui/game_world_boss.lua), liên server"
+  },
+  "world_cup_flag": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: liên server, sự kiện nạp/quay thưởng hoặc SDK"
+  },
+  "world_cup_guess": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: liên server, sự kiện nạp/quay thưởng hoặc SDK"
+  },
+  "world_one": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: liên server, sự kiện nạp/quay thưởng hoặc SDK"
+  },
+  "world_tree_new": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: cây thế giới (game_ui/game_worldTree_new_mian.lua), sự kiện"
+  },
+  "wormholes_field": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: vùng giun 虫洞 (game_ui/game_wormhole_main.lua), liên server"
+  },
+  "yunxin": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: liên server, sự kiện nạp/quay thưởng hoặc SDK"
+  },
+  "zodiac": {
+   "phase": null,
+   "open": false,
+   "reason": "ngoài phạm vi 2018: cung hoàng đạo thuộc thần giới (game_pop/game_godfield_Star_zhenxing.lua), liên server"
+  }
+ },
+ "quiet": {},
+ "views": {
+  "1": {
+   "open": false,
+   "reason": "nút sự kiện nạp 充值好礼 (active 501), ngoài phạm vi"
+  },
+  "2": {
+   "open": false,
+   "reason": "nút gói chi tiêu (tag 500), sự kiện nạp, ngoài phạm vi"
+  },
+  "3": {
+   "module": "reward",
+   "reason": "mẹo nhắc nhận thưởng trên bản đồ nhỏ (mainSceneTips reward); giai đoạn 1"
+  },
+  "4": {
+   "module": "reward",
+   "reason": "mẹo nhắc treo thưởng mỗi ngày (mainSceneTips day); giai đoạn 1"
+  },
+  "5": {
+   "open": false,
+   "reason": "không nơi nào trong Lua gọi view này"
+  },
+  "6": {
+   "open": false,
+   "reason": "không nơi nào trong Lua gọi view này"
+  },
+  "7": {
+   "module": "arena",
+   "reason": "đấu trường trong ui_secretary_detaile.lua; giai đoạn 6"
+  },
+  "8": {
+   "module": "reward",
+   "reason": "mẹo nhắc nhận thưởng online (alerts once); giai đoạn 1"
+  },
+  "9": {
+   "module": "daily_award",
+   "reason": "nút điểm danh trên màn chính; giai đoạn 1"
+  },
+  "10": {
+   "open": false,
+   "reason": "nút mở máy chủ (tag 1032), sự kiện, ngoài phạm vi"
+  },
+  "11": {
+   "open": false,
+   "reason": "popup thông báo mở khi vào màn chính; đóng để tránh dữ liệu thông báo chưa có"
+  },
+  "12": {
+   "module": "gacha",
+   "reason": "nút chiêu mộ tướng trên màn chính"
+  },
+  "13": {
+   "module": "association",
+   "reason": "nút bang hội trong bảng xếp hạng; giai đoạn 6"
+  },
+  "14": {
+   "open": false,
+   "reason": "không nơi nào trong Lua gọi view này"
+  },
+  "15": {
+   "module": "leader_skill",
+   "reason": "Kĩ năng nhân vật chính (menu game_function_pop.lua): leader_skill.open; giai đoạn 3"
+  },
+  "16": {
+   "module": "commander",
+   "reason": "Thống Soái (menu game_function_pop.lua): commander.index; giai đoạn 2"
+  },
+  "17": {
+   "module": "school",
+   "reason": "Huấn luyện đồng đội (menu game_function_pop.lua): school.open"
+  },
+  "18": {
+   "module": "cards",
+   "reason": "Nâng cấp kĩ năng (menu game_function_pop.lua): cards.card_skill_levelup"
+  },
+  "19": {
+   "module": "cards",
+   "reason": "Tiến hóa đồng đội (menu game_function_pop.lua): cards.card_evolution"
+  },
+  "20": {
+   "open": false,
+   "reason": "Cải tạo thuộc tính (menu game_function_pop.lua); giai đoạn 5"
+  },
+  "21": {
+   "open": false,
+   "reason": "Đổi đồng đội (menu game_function_pop.lua): cần item.view, chưa có handler; giai đoạn 1"
+  },
+  "22": {
+   "module": "equip",
+   "reason": "Cường hóa trang bị (menu game_function_pop.lua); giai đoạn 2"
+  },
+  "23": {
+   "module": "equip",
+   "reason": "Tiến hóa trang bị (menu game_function_pop.lua); giai đoạn 2"
+  },
+  "24": {
+   "module": "equip",
+   "reason": "Tinh luyện trang bị (menu game_function_pop.lua); giai đoạn 2"
+  },
+  "25": {
+   "module": "equip",
+   "reason": "Tách trang bị (menu game_function_pop.lua); giai đoạn 2"
+  },
+  "26": {
+   "open": false,
+   "reason": "Đổi trang bị (menu game_function_pop.lua): cần item.view, chưa có handler; giai đoạn 1"
+  },
+  "27": {
+   "module": "friend",
+   "reason": "Bạn bè (menu game_function_pop.lua); giai đoạn 1"
+  },
+  "28": {
+   "module": "notify",
+   "reason": "Thông tin (menu game_function_pop.lua): notify.messages; giai đoạn 1"
+  },
+  "29": {
+   "module": "payment",
+   "reason": "Nạp tiền (menu game_function_pop.lua): màn VIP, shop.vip_buy_step và payment.use_ticket"
+  },
+  "30": {
+   "module": "shop",
+   "reason": "Cửa hàng Xu (menu game_function_pop.lua): shop.open"
+  },
+  "31": {
+   "open": false,
+   "reason": "Cửa hàng siêu năng (menu game_function_pop.lua): cards.open_dirt_shop chưa có handler; giai đoạn 5"
+  },
+  "32": {
+   "open": false,
+   "reason": "Phân giải đồng đội (menu game_function_pop.lua); giai đoạn 5"
+  },
+  "33": {
+   "module": "cards",
+   "reason": "Kế thừa đồng đội (menu game_function_pop.lua): cards.inherit"
+  },
+  "34": {
+   "open": false,
+   "reason": "Cửa hàng khuyến mãi (menu game_function_pop.lua): shop.outlets_open chưa có handler"
+  },
+  "35": {
+   "module": "book_exchange",
+   "reason": "Thư viện đồng đội/trang bị (menu game_function_pop.lua): book_exchange.*"
+  },
+  "36": {
+   "open": false,
+   "reason": "không nơi nào trong Lua gọi view này"
+  },
+  "37": {
+   "open": false,
+   "reason": "không nơi nào trong Lua gọi view này"
+  },
+  "38": {
+   "open": true,
+   "reason": "Thiết lập (menu game_function_pop.lua): popup cài đặt phía client, không gọi API"
+  },
+  "39": {
+   "open": false,
+   "reason": "ải tinh anh trong ui_secretary_detaile.lua; giai đoạn 4"
+  },
+  "40": {
+   "open": false,
+   "reason": "không nơi nào trong Lua gọi view này"
+  },
+  "41": {
+   "open": false,
+   "reason": "mã mời trong ui_secretary_detaile.lua: user.request_code_index chưa có handler"
+  },
+  "42": {
+   "open": false,
+   "reason": "thanh quảng cáo chỉ dành cho iOS, ngoài phạm vi"
+  },
+  "43": {
+   "open": false,
+   "reason": "không nơi nào trong Lua gọi view này"
+  },
+  "44": {
+   "open": false,
+   "reason": "Chuyển sinh đồng đội (menu game_function_pop.lua); giai đoạn 5"
+  },
+  "45": {
+   "open": false,
+   "reason": "không nơi nào trong Lua gọi view này"
+  },
+  "46": {
+   "open": false,
+   "reason": "không nơi nào trong Lua gọi view này"
+  },
+  "47": {
+   "open": false,
+   "reason": "không nơi nào trong Lua gọi view này"
+  },
+  "48": {
+   "open": false,
+   "reason": "không nơi nào trong Lua gọi view này"
+  },
+  "49": {
+   "open": false,
+   "reason": "nút phúc lợi trên màn chính (game_main_scene.lua, game_fuli_activity_scene.lua); giai đoạn 1"
+  },
+  "101": {
+   "module": "user",
+   "reason": "huy hiệu VIP trên ảnh đại diện màn chính"
+  },
+  "102": {
+   "open": false,
+   "reason": "bỏ hình VIP trong màn huấn luyện tướng"
+  },
+  "103": {
+   "open": false,
+   "reason": "bỏ dòng nhắc VIP trong màn truyền thừa"
+  },
+  "104": {
+   "open": true,
+   "reason": "bật thanh VIP vì nạp giả đã cấp vip_exp thật"
+  },
+  "105": {
+   "open": false,
+   "reason": "nút quà VIP cần shop vip_bought, chưa có; giai đoạn 1"
+  },
+  "106": {
+   "open": false,
+   "reason": "bảng đặc quyền VIP chưa làm; giai đoạn 1"
+  },
+  "107": {
+   "open": false,
+   "reason": "bỏ mẹo VIP ở màn càn quét"
+  },
+  "108": {
+   "open": false,
+   "reason": "điểm và xếp hạng chiêu mộ chưa làm"
+  },
+  "109": {
+   "open": false,
+   "reason": "không nơi nào trong Lua gọi view này"
+  },
+  "111": {
+   "open": false,
+   "reason": "tự động càn quét theo VIP chưa làm"
+  },
+  "112": {
+   "open": false,
+   "reason": "sự kiện điểm giới hạn thời gian, ngoài phạm vi"
+  },
+  "113": {
+   "open": false,
+   "reason": "sự kiện điểm giới hạn thời gian, ngoài phạm vi"
+  },
+  "118": {
+   "open": false,
+   "reason": "không nơi nào trong Lua gọi view này"
+  },
+  "119": {
+   "open": false,
+   "reason": "không nơi nào trong Lua gọi view này"
+  },
+  "120": {
+   "open": false,
+   "reason": "không nơi nào trong Lua gọi view này"
+  },
+  "121": {
+   "open": false,
+   "reason": "không nơi nào trong Lua gọi view này"
+  },
+  "122": {
+   "open": false,
+   "reason": "không nơi nào trong Lua gọi view này"
+  },
+  "123": {
+   "module": "guild_gvg",
+   "reason": "nút bang chiến màn chính, mở từ cấp 10; giai đoạn 6"
+  },
+  "126": {
+   "module": "pay_award",
+   "reason": "nút thẻ tháng; giai đoạn 1"
+  },
+  "128": {
+   "open": false,
+   "reason": "Tái sinh đồng đội (menu game_function_pop.lua); giai đoạn 5"
+  },
+  "129": {
+   "module": "gem",
+   "reason": "cờ đá quý đội trong màn đội hình; giai đoạn 2"
+  },
+  "130": {
+   "module": "gem",
+   "reason": "nút đá quý trong pop thông tin tướng; giai đoạn 2"
+  },
+  "131": {
+   "module": "equip",
+   "reason": "phụ ma trang bị (menu game_function_pop.lua); giai đoạn 2"
+  },
+  "133": {
+   "open": false,
+   "reason": "đóng để bỏ qua tutorial dung hợp bằng cách gửi bước 711"
+  },
+  "143": {
+   "open": false,
+   "reason": "chat trong open_door_main_scene.lua: ngoài phạm vi"
+  },
+  "144": {
+   "open": false,
+   "reason": "nút sự kiện nhân đôi ngày 2022-08-24, ngoài phạm vi"
+  },
+  "145": {
+   "open": false,
+   "reason": "ô năng lực thứ hai trong màn đội hình (game_adjustment_formation.lua); giai đoạn 5"
+  },
+  "147": {
+   "open": false,
+   "reason": "siêu tiến hóa (menu game_function_pop.lua): ngoài phạm vi 2018"
+  },
+  "148": {
+   "module": "equip",
+   "reason": "tẩy luyện trang bị (menu game_function_pop.lua); giai đoạn 2"
+  },
+  "151": {
+   "open": false,
+   "reason": "sự kiện kế hoạch trưởng thành grow_gift, ngoài phạm vi"
+  },
+  "152": {
+   "module": "pets",
+   "reason": "Xem thú nuôi (menu game_function_pop.lua); giai đoạn 5"
+  },
+  "153": {
+   "module": "pets",
+   "reason": "Trận hình thú nuôi (menu game_function_pop.lua); giai đoạn 5"
+  },
+  "154": {
+   "module": "pets",
+   "reason": "nút trong game_pet_upgrade_pop.lua; giai đoạn 5"
+  },
+  "157": {
+   "module": "pets",
+   "reason": "nút trong game_pet_list_scene.lua; giai đoạn 5"
+  },
+  "158": {
+   "module": "pets",
+   "reason": "nút thú nuôi theo sau trong màn thú nuôi; giai đoạn 5"
+  },
+  "161": {
+   "module": "medal",
+   "reason": "nút huân chương trong màn đội hình; giai đoạn 5"
+  },
+  "166": {
+   "module": "soul",
+   "reason": "nút linh hồn trong màn đội hình; giai đoạn 5"
+  },
+  "167": {
+   "module": "equip",
+   "reason": "rèn trang bị (menu game_function_pop.lua); giai đoạn 2"
+  },
+  "170": {
+   "module": "equip",
+   "reason": "nút trong equip_evolution.lua và equipment_quik_pop.lua; giai đoạn 2"
+  },
+  "171": {
+   "module": "clone_lane",
+   "reason": "nút sự kiện 克隆车道 trên màn chính; ngoài phạm vi"
+  },
+  "172": {
+   "module": "offline_dispatch",
+   "reason": "Đồng đội chuyển thế (menu game_function_pop.lua): offline_dispatch.index"
+  },
+  "173": {
+   "open": false,
+   "reason": "không nơi nào trong Lua gọi view này"
+  },
+  "174": {
+   "open": false,
+   "reason": "không nơi nào trong Lua gọi view này"
+  },
+  "175": {
+   "open": false,
+   "reason": "không nơi nào trong Lua gọi view này"
+  },
+  "176": {
+   "open": false,
+   "reason": "không nơi nào trong Lua gọi view này"
+  },
+  "177": {
+   "open": false,
+   "reason": "Tăng thuộc tính nhân vật chính (menu game_function_pop.lua); giai đoạn 5"
+  },
+  "178": {
+   "module": "fable_beast",
+   "reason": "Thần thú (menu game_function_pop.lua): fable_beast.index"
+  },
+  "179": {
+   "module": "medal",
+   "reason": "nút huân chương trong đội hình thần giới; giai đoạn 5"
+  },
+  "180": {
+   "module": "soul",
+   "reason": "nút linh hồn trong đội hình thần giới; giai đoạn 5"
+  },
+  "181": {
+   "module": "gem",
+   "reason": "cờ đá quý đội trong đội hình thần giới; giai đoạn 2"
+  },
+  "182": {
+   "module": "equip",
+   "reason": "trang bị vận mệnh (menu game_function_pop.lua, game_equip_info_pop.lua); giai đoạn 2"
+  },
+  "185": {
+   "open": false,
+   "reason": "nút đội trợ chiến chưa làm"
+  },
+  "186": {
+   "module": "association",
+   "reason": "nút trong màn bang hội; giai đoạn 6"
+  },
+  "187": {
+   "module": "association",
+   "reason": "nút trong màn bang hội; giai đoạn 6"
+  },
+  "188": {
+   "module": "pay_sign",
+   "reason": "nút điểm danh trả phí trên màn chính; ngoài phạm vi"
+  },
+  "189": {
+   "module": "highway",
+   "reason": "nút áp tải thần giới; liên server, ngoài phạm vi"
+  },
+  "190": {
+   "module": "zodiac",
+   "reason": "nút mười hai cung trong thần giới; liên server, ngoài phạm vi"
+  },
+  "191": {
+   "module": "fable_beast",
+   "reason": "nút trong game_combiner_detail.lua (thần thú)"
+  },
+  "193": {
+   "module": "equip",
+   "reason": "nút thứ hai trong game_equip_fateUpRefresh_pop.lua; giai đoạn 2"
+  },
+  "194": {
+   "module": "offline_dispatch",
+   "reason": "NV anh hùng (menu game_function_pop.lua): offline_dispatch.index"
+  },
+  "195": {
+   "open": false,
+   "reason": "Thiên Phú Bạn Bè (menu game_function_pop.lua); giai đoạn 5"
+  },
+  "196": {
+   "module": "gem_fate",
+   "reason": "nút làm mới đá quý định mệnh; giai đoạn 2"
+  },
+  "197": {
+   "module": "god_stone",
+   "reason": "nút thánh thạch trong đội hình; hệ thống sau 2018"
+  },
+  "198": {
+   "module": "association",
+   "reason": "nút trong màn bang hội; giai đoạn 6"
+  },
+  "199": {
+   "open": false,
+   "reason": "nút đổi giao diện trong cài đặt, chưa kiểm chứng"
+  },
+  "200": {
+   "open": false,
+   "reason": "không nơi nào trong Lua gọi view này"
+  },
+  "201": {
+   "open": false,
+   "reason": "lớp đội trợ chiến trong pop đội hình, chưa làm"
+  },
+  "202": {
+   "open": false,
+   "reason": "không nơi nào trong Lua gọi view này"
+  },
+  "203": {
+   "module": "gem",
+   "reason": "nút trong pop thông tin đá quý; giai đoạn 2"
+  },
+  "204": {
+   "open": false,
+   "reason": "không nơi nào trong Lua gọi view này"
+  },
+  "205": {
+   "open": false,
+   "reason": "danh nhân đường (menu game_function_pop.lua): cards.famous_index, ngoài phạm vi 2018"
+  },
+  "206": {
+   "module": "homeland",
+   "reason": "gia viên (menu game_function_pop.lua): homeland.index"
+  },
+  "207": {
+   "open": false,
+   "reason": "không nơi nào trong Lua gọi view này"
+  },
+  "208": {
+   "module": "equip",
+   "reason": "chế tạo trang bị (menu game_function_pop.lua); giai đoạn 2"
+  },
+  "209": {
+   "open": false,
+   "reason": "không nơi nào trong Lua gọi view này"
+  },
+  "210": {
+   "open": false,
+   "reason": "check đã bị comment trong ui/guild/view.lua"
+  },
+  "211": {
+   "open": false,
+   "reason": "check đã bị comment trong ui/guild/view.lua"
+  },
+  "212": {
+   "module": "active",
+   "reason": "nút trong danh sách sự kiện; ngoài phạm vi"
+  },
+  "213": {
+   "module": "team_fight",
+   "reason": "nút nhiệm vụ đồng đội trong màn thông báo; liên server"
+  },
+  "214": {
+   "open": false,
+   "reason": "không nơi nào trong Lua gọi view này"
+  },
+  "215": {
+   "open": false,
+   "reason": "không nơi nào trong Lua gọi view này"
+  },
+  "216": {
+   "module": "wormholes_field",
+   "reason": "nút vùng giun trên màn chính; liên server"
+  },
+  "217": {
+   "open": false,
+   "reason": "check đã bị comment; kho chứa ngoài lộ trình"
+  },
+  "218": {
+   "open": false,
+   "reason": "không nơi nào trong Lua gọi view này"
+  },
+  "219": {
+   "open": false,
+   "reason": "không nơi nào trong Lua gọi view này"
+  },
+  "224": {
+   "open": false,
+   "reason": "đột phá nguyên tố (menu game_function_pop.lua): ngoài phạm vi 2018"
+  },
+  "225": {
+   "open": false,
+   "reason": "phù văn vận mệnh (menu game_function_pop.lua): cards.fate_rune_index, ngoài phạm vi 2018"
+  },
+  "226": {
+   "module": "gem_fate",
+   "reason": "nút huyết thạch trong màn đội hình; giai đoạn 2"
+  },
+  "228": {
+   "open": false,
+   "reason": "siêu kho (menu game_function_pop.lua): ngoài phạm vi 2018"
+  },
+  "229": {
+   "module": "badge",
+   "reason": "Tiến giai Huy Hiệu (menu game_function_pop.lua); giai đoạn 5"
+  },
+  "230": {
+   "open": false,
+   "reason": "không nơi nào trong Lua gọi view này"
+  },
+  "500": {
+   "open": false,
+   "reason": "không nơi nào trong Lua gọi view này"
+  },
+  "801": {
+   "open": true,
+   "reason": "Tăng tốc - Giúp đỡ (menu game_function_pop.lua): phía client"
+  },
+  "802": {
+   "open": true,
+   "reason": "Tăng tốc - Khởi động (menu game_function_pop.lua): phía client"
+  },
+  "803": {
+   "open": true,
+   "reason": "Tăng tốc - Tắt (menu game_function_pop.lua): phía client"
+  },
+  "901": {
+   "open": false,
+   "reason": "sự kiện nạp mở máy chủ mới; ngoài phạm vi"
+  },
+  "902": {
+   "open": false,
+   "reason": "sự kiện cửa hàng máy chủ mới; ngoài phạm vi"
+  },
+  "903": {
+   "open": false,
+   "reason": "sự kiện đổi thưởng máy chủ mới; ngoài phạm vi"
+  },
+  "904": {
+   "open": false,
+   "reason": "sự kiện tướng giới hạn máy chủ mới; ngoài phạm vi"
+  },
+  "905": {
+   "open": false,
+   "reason": "sự kiện 满天星 máy chủ mới; ngoài phạm vi"
+  },
+  "906": {
+   "open": false,
+   "reason": "sự kiện vòng quay máy chủ mới; ngoài phạm vi"
+  },
+  "907": {
+   "open": false,
+   "reason": "quỹ phúc lợi máy chủ mới; ngoài phạm vi"
+  },
+  "908": {
+   "open": false,
+   "reason": "sự kiện Trung thu máy chủ mới; ngoài phạm vi"
+  },
+  "909": {
+   "open": false,
+   "reason": "sự kiện thần long máy chủ mới; ngoài phạm vi"
+  },
+  "910": {
+   "open": false,
+   "reason": "sự kiện 赛亚人 máy chủ mới; ngoài phạm vi"
+  },
+  "911": {
+   "open": false,
+   "reason": "sự kiện 悬赏令 máy chủ mới; ngoài phạm vi"
+  },
+  "912": {
+   "open": false,
+   "reason": "sự kiện 海贼王 máy chủ mới; ngoài phạm vi"
+  },
+  "913": {
+   "open": false,
+   "reason": "sự kiện vòng quay máy chủ mới; ngoài phạm vi"
+  },
+  "914": {
+   "open": false,
+   "reason": "sự kiện 火焰杯 máy chủ mới; ngoài phạm vi"
+  },
+  "915": {
+   "open": false,
+   "reason": "sự kiện cờ tỷ phú máy chủ mới; ngoài phạm vi"
+  },
+  "916": {
+   "open": false,
+   "reason": "sự kiện đổi thẻ bài máy chủ mới; ngoài phạm vi"
+  },
+  "917": {
+   "open": false,
+   "reason": "sự kiện 众神殿 máy chủ mới; ngoài phạm vi"
+  },
+  "918": {
+   "open": false,
+   "reason": "không nơi nào trong Lua gọi view này"
+  },
+  "919": {
+   "open": false,
+   "reason": "sự kiện bữa ăn máy chủ mới; ngoài phạm vi"
+  },
+  "920": {
+   "open": false,
+   "reason": "không nơi nào trong Lua gọi view này"
+  },
+  "921": {
+   "open": false,
+   "reason": "sự kiện phong bao máy chủ mới; ngoài phạm vi"
+  },
+  "10000": {
+   "open": false,
+   "reason": "Hero's road mở ở cấp 40 chưa làm; client hiện toast Tạm thời chưa mở"
+  }
+ }
+}

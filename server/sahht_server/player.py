@@ -23,15 +23,29 @@ CURRENCIES = (
     "coin", "food", "metal", "energy", "crystal", "silver", "star", "exp_ball", "metalcore",
     "dirt_silver", "dirt_gold", "adv_crystal", "super_crystal", "pet_crystal", "world_cup_oil",
     "small_forge_stone", "middle_forge_stone", "high_forge_stone", "grace", "grace_high",
-    "cmdr_energy", "free_train_times", "ticket", "universe_coin", "rune_stone", "pink_coin",
+    "cmdr_energy", "free_train_times", "universe_coin", "rune_stone", "pink_coin",
     "pet_exp_ball", "enchant", "association_dedication", "arena_point", "refine_stone",
     "pet_skill_stone",
 )
 # Keys read with no `or default` fallback that have no game system behind them yet.
 _FIXED_STATUS = {
-    "vip": 0, "vip_exp": 0, "association_id": 0, "cur_title": 0,
+    "association_id": 0, "cur_title": 0,
     "card_max": 200, "equip_max": 100, "role": 1,
 }
+# Gold tickets ("Vé vàng") are how the client pays for recharge packs
+# (native_helper.buyProduct). Recharge is free on this server, so the balance is fixed
+# and never spent. The largest pack costs 300 tickets.
+FREE_TICKETS = 9999
+
+
+def vip_level(configs, vip_exp: int) -> int:
+    """vip.config row L's need_exp is the total vip_exp that reaches L + 1. Capped at the
+    top row: ui_vip reads the current level's row with no nil guard."""
+    rows = configs.get("vip")
+    if not rows:
+        return 0
+    reached = sum(1 for row in rows.values() if row.get("need_exp", float("inf")) <= vip_exp)
+    return min(reached, max(int(key) for key in rows))
 
 
 def ensure_starter(svc, player: dict) -> None:
@@ -118,6 +132,9 @@ def user_status(svc, uid: str) -> dict:
         **_FIXED_STATUS,
         **{c: wallet.get(c, 0) for c in CURRENCIES},
         **svc.store.state(uid, now),  # action_point, action_point_update_left, exp
+        "ticket": FREE_TICKETS,
+        "vip_exp": wallet.get("vip_exp", 0),
+        "vip": vip_level(svc.configs, wallet.get("vip_exp", 0)),
         "action_point_max": svc.store.ap_max, "action_point_rate": svc.store.ap_interval,
         "exp_max": rules.player_exp_max(player["level"]),
         "guide": svc.store.guide(uid),

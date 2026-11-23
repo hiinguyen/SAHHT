@@ -9,15 +9,19 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
-from . import campaign, cards, gacha, handlers, shop
+from . import campaign, cards, gacha, handlers, payment, shop
+from . import scope as scope_module
 from .player import user_status
 from .handlers import ConfigCache, Request, Services
+from .scope import Scope
 from .store import Store
 
 SESSION_HANDLERS = {**handlers.SESSION_HANDLERS, **campaign.HANDLERS, **cards.HANDLERS,
-                    **gacha.HANDLERS, **shop.HANDLERS}
+                    **gacha.HANDLERS, **shop.HANDLERS, **payment.HANDLERS}
 SERVICES = {"login", "api", "config", "pay", "dataosha", "lua_ver"}
 SESSION_SERVICES = {"api", "pay", "dataosha"}
+QUIET_SERVICES = {"dataosha"}   # the client's own analytics: answered, never shown
+CLOSED_MSG = "Tính năng chưa mở."
 REDACTED_PARAMS = {"passwd", "rans"}
 HOST_RE = re.compile(r"^[A-Za-z0-9.\-]+(:\d{1,5})?$")
 VERSION_RE = re.compile(r"^[A-Za-z0-9._\-]+$")
@@ -32,12 +36,15 @@ class RequestLog:
         self._path = Path(path) if path else None
         self._lock = threading.Lock()
 
-    def write(self, service, method, params, stub):
+    def write(self, service, method, params, flag=None):
+        """`flag` is "quiet" or "closed" for methods with no handler: the work still to do."""
         if self._path is None:
             return
         safe = {k: "<redacted>" if k in REDACTED_PARAMS else v for k, v in params.items()}
-        line = json.dumps({"service": service, "method": method, "params": safe, "stub": stub},
-                          ensure_ascii=False)
+        record = {"service": service, "method": method, "params": safe}
+        if flag:
+            record[flag] = True
+        line = json.dumps(record, ensure_ascii=False)
         with self._lock, self._path.open("a", encoding="utf-8") as f:
             f.write(line + "\n")
 
@@ -103,39 +110,40 @@ class GameHandler(BaseHTTPRequestHandler):
                 return 404, NOT_FOUND
             return 200, handlers.lua_manifest(version)
 
-        body, stub = self._dispatch(req, svc)
-        self.server.request_log.write(service, method, params, stub)
+        body, flag = self._dispatch(req, svc)
+        self.server.request_log.write(service, method, params, flag)
         return 200, body
 
     def _dispatch(self, req, svc):
+        """(body, log flag): the flag is None, "quiet" or "closed"."""
         if req.service == "config":
             if req.method == "all_config":
-                return handlers.all_config(req, svc), False
-            return _refused(req.method), False
+                return handlers.all_config(req, svc), None
+            return _refused(req.method), None
         if req.service == "login" and req.method in handlers.LOGIN_HANDLERS:
-            return handlers.LOGIN_HANDLERS[req.method](req, svc), False
+            return handlers.LOGIN_HANDLERS[req.method](req, svc), None
 
         handler = SESSION_HANDLERS.get((req.service, req.method))
         if handler is None and req.service not in SESSION_SERVICES:
-            return _refused(req.method), False  # e.g. an unimplemented login method
+            return _refused(req.method), None  # e.g. an unimplemented login method
 
         player = self._session_player(req, svc)
         if player is None:
-            return handlers.need_login(), False
-        stub = handler is None
+            return handlers.need_login(), None
+        flag, handler = _resolve(req, svc.scope, handler)
         # One transaction per request: concurrent requests of a player cannot interleave
         # their checks and writes, a crash leaves nothing half done, and a refusal
         # (an error status) never keeps a partial change.
         try:
             with svc.store.transaction():
-                body = handlers.ok() if stub else handler(req, svc, player)
+                body = handler(req, svc, player)
                 if body.get("status") != 0:
                     raise handlers.Refused.of(body)
                 body["user_status"] = user_status(svc, player["uid"])
         except handlers.Refused as refused:
             body = refused.body
             body["user_status"] = user_status(svc, player["uid"])
-        return body, stub
+        return body, flag
 
     @staticmethod
     def _session_player(req, svc):
@@ -147,20 +155,46 @@ class GameHandler(BaseHTTPRequestHandler):
         return player
 
 
+def _resolve(req, scope: Scope, handler):
+    """(log flag, handler) for a session request. Without a handler, a background call
+    recorded in the scope gets its verified empty body, the client's analytics an empty
+    success, and anything else a popup: an empty success would let the screen run on
+    and fail on missing fields."""
+    if handler is not None:
+        return None, handler
+    body = scope.quiet_body(req.method) if req.service == "api" else None
+    if body is not None or req.service in QUIET_SERVICES:
+        return "quiet", lambda *_: handlers.ok(body or {})
+    return "closed", _closed
+
+
+def _closed(*_):
+    return handlers.fail("error_not_open", CLOSED_MSG)
+
+
 def _refused(method):
     return handlers.fail("refused", f"chưa hỗ trợ: {method}")
 
 
-def build_server(host, port, db_path, config_dir, version_map_path, request_log):
+class GameServer(ThreadingHTTPServer):
+    daemon_threads = True
+
+    def server_close(self):
+        super().server_close()
+        self.services.store.close()
+
+
+def build_server(host, port, db_path, config_dir, version_map_path, request_log, scope_path=None):
     version_map = json.loads(Path(version_map_path).read_text(encoding="utf-8"))
-    server = ThreadingHTTPServer((host, port), GameHandler)
-    server.daemon_threads = True
+    scope = Scope.load(scope_path or scope_module.DEFAULT_PATH)   # a bad file stops the start
+    server = GameServer((host, port), GameHandler)
     server.services = Services(
         store=Store(str(db_path)),
         config_dir=Path(config_dir),
         version_map=version_map,
         all_config_version=handlers.version_map_etag(version_map),
         configs=ConfigCache(config_dir),
+        scope=scope,
     )
     server.request_log = RequestLog(request_log)
     return server
@@ -175,10 +209,11 @@ def main():
     ap.add_argument("--config-dir", default=str(root.parent / "decompiled" / "apk" / "assets" / "config"))
     ap.add_argument("--version-map", default=str(root / "data" / "game_config_version.json"))
     ap.add_argument("--request-log", default=str(root / "data" / "requests.jsonl"))
+    ap.add_argument("--scope", default=str(root / "data" / "scope_2018.json"))
     args = ap.parse_args()
 
     server = build_server(args.host, args.port, args.db, args.config_dir,
-                          args.version_map, args.request_log)
+                          args.version_map, args.request_log, args.scope)
     print(f"listening on http://{args.host}:{server.server_address[1]}/pub_abroad_vr", file=sys.stderr)
     try:
         server.serve_forever()

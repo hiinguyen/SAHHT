@@ -68,7 +68,8 @@ def _city_buildings(svc: Services) -> dict:
 def _cities_in_order(svc: Services) -> list:
     order = svc.configs.get("cityid_cityorderid")
     known = _city_buildings(svc)
-    return [city for city, _ in sorted(order.items(), key=lambda kv: int(kv[1])) if city in known]
+    return [city for city, number in sorted(order.items(), key=lambda kv: int(kv[1]))
+            if city in known and svc.scope.city_order_in_scope(number)]
 
 
 def _chapter(svc: Services, city: str) -> str:

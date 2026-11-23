@@ -2,6 +2,8 @@
 
 import unittest
 
+from sahht_server.handlers import Refused
+from sahht_server.rewards import Loot, grant
 from tests.test_flow import ServerCase
 
 
@@ -175,6 +177,14 @@ class HeroTests(PlayerCase):
             self.call("gacha.get_gacha", gacha_type="999")
         bodies = [self.call("gacha.get_gacha", gacha_type="101") for _ in range(times)]
         return [cid for b in bodies for cid in b["data"]["new_card"]]
+
+    def test_a_hero_after_2018_is_never_granted(self):
+        svc = self.server.services
+        with self.assertRaises(Refused) as caught:
+            with svc.store.transaction():
+                grant(svc, self.uid, Loot(cards=[100, 38800]), 0)
+        self.assertEqual(caught.exception.body["status"], "error_scope")
+        self.assertEqual(len(svc.store.cards_for_player(self.uid)), 3)
 
     def test_inherit_moves_seventy_percent_and_resets_the_giver(self):
         self.fight(100001)   # level 1 caps cards at 19 exp; the player reaches level 2

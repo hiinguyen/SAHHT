@@ -5,6 +5,7 @@ answers with what the client needs: a `reward` dict for the toast and a
 `_client_cache_update` block, the only way new cards and items reach the client's state.
 """
 
+import sys
 from dataclasses import dataclass, field
 
 from .handlers import Refused
@@ -95,6 +96,11 @@ class Granted:
 
 def grant(svc, uid: str, loot: Loot, now: int) -> Granted:
     """Apply the loot inside one transaction and describe it for the client."""
+    late = [c for c in loot.cards if not svc.scope.card_in_scope(c)]
+    if late:
+        # A data bug, never a player action: no config reward should lead past the cut.
+        print(f"refused out-of-scope heroes {late} for player {uid}", file=sys.stderr)
+        raise Refused("error_scope", "Phần thưởng không hợp lệ.")
     store = svc.store
     with store.transaction():
         store.change_wallet(uid, loot.currencies)
