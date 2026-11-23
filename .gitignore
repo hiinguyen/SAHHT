@@ -1,0 +1,9 @@
+# The original client and everything extracted from it: third-party game code and
+# assets, and far over GitHub's file size limit. Rebuild them with decompiled/tools
+# (see decompiled/NOTES.md and CLAUDE.md).
+*.apk
+decompiled/apk/
+decompiled/lua/
+decompiled/characters/
+decompiled/preview/
+__pycache__/
