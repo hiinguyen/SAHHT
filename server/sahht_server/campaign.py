@@ -72,6 +72,16 @@ def _cities_in_order(svc: Services) -> list:
             if city in known and svc.scope.city_order_in_scope(number)]
 
 
+def _normal_cities(svc: Services) -> set:
+    """Cities of the normal campaign; the others belong to elite chapters (is_hard)."""
+    def build():
+        chapters = svc.configs.get("chapter")
+        return {str(row.get("stage_id")) for row in svc.configs.get("map_main_story").values()
+                if isinstance(row, dict)
+                and chapters.get(str(row.get("chapter")), {}).get("is_hard") == 0}
+    return svc.configs.derived("normal_cities", build)
+
+
 def _chapter(svc: Services, city: str) -> str:
     order_id = svc.configs.get("cityid_cityorderid").get(city)
     entry = svc.configs.get("map_main_story").get(str(order_id))
@@ -170,15 +180,17 @@ def _requested_building(req: Request, svc: Services):
 
 def world_map(req: Request, svc: Services, player: dict):
     cleared = svc.store.cleared_buildings(player["uid"])
-    reached = _reached_cities(svc, player["level"])
-    last = reached[-1] if reached else "100"
+    regain = {city: _regain(_city_plan(svc, city).buildings, cleared)
+              for city in _reached_cities(svc, player["level"])}
+    # The city the map opens on and marks: the first normal one not fully recovered.
+    normal = [city for city in regain if city in _normal_cities(svc)]
+    last = next((city for city in normal if regain[city] < 100), normal[-1] if normal else "100")
     return ok({
         "last_chapter": _chapter(svc, last), "last_city": last,
         "hard_last_chapter": "0", "hard_last_city": "0",
         "hard_last_attack": {"chapter": 1},  # read unguarded by map_world_scene
         "buy_hard_times": 0, "hard_done_times": 0, "hard_max_times": 3,
-        "all_city_regain_percent": {
-            city: _regain(_city_plan(svc, city).buildings, cleared) for city in reached},
+        "all_city_regain_percent": regain,
         "world_level": 1, "world_score": 0,
     })
 
@@ -200,10 +212,14 @@ def city_open(req: Request, svc: Services, player: dict):
 
 
 def _enemy(svc: Services, city: str, enemy_id) -> dict:
-    """Per-city enemy_soldier_<city> first, then the shared enemy_detail (the client's order)."""
+    """Per-city enemy_soldier_<city> first, then the shared enemy_detail (the client's order).
+    A few buildings borrow another city's fight (194011 fights 199022, whose enemies are
+    in enemy_soldier_199), so the city in the enemy id (<city><3 digits>) comes second."""
     key = str(enemy_id)
-    return (svc.configs.get(f"enemy_soldier_{city}").get(key)
-            or svc.configs.get("enemy_detail")[key])
+    for table in (f"enemy_soldier_{city}", f"enemy_soldier_{key[:-3]}"):
+        if enemy := svc.configs.get(table).get(key):
+            return enemy
+    return svc.configs.get("enemy_detail")[key]
 
 
 def _enemy_ids(fight: dict) -> list:

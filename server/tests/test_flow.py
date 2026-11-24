@@ -138,7 +138,7 @@ class ServerCase(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.config_dir = Path(self.tmp.name) / "config"
         self.config_dir.mkdir()
-        for name, content in FIXTURE_CONFIGS.items():
+        for name, content in {**FIXTURE_CONFIGS, **self.extra_configs()}.items():
             (self.config_dir / f"{name}.config").write_text(json.dumps(content))
         self.log_path = Path(self.tmp.name) / "requests.jsonl"
         self.server = build_server(
@@ -153,6 +153,10 @@ class ServerCase(unittest.TestCase):
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
         self.port = self.server.server_address[1]
+
+    def extra_configs(self):
+        """Configs added to (or replacing) FIXTURE_CONFIGS for this test case."""
+        return {}
 
     def scope_path(self):
         """The scope file the server loads (None: data/scope_2018.json). self.tmp exists here."""
@@ -454,6 +458,10 @@ class GameApiTests(ServerCase):
 
 class QuietMethodTests(ServerCase):
     """A background call listed in the scope's `quiet` gets its recorded empty body."""
+
+    def extra_configs(self):
+        """Configs added to (or replacing) FIXTURE_CONFIGS for this test case."""
+        return {}
 
     def scope_path(self):
         from sahht_server.scope import DEFAULT_PATH

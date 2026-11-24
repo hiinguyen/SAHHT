@@ -22,7 +22,9 @@ echo "--- requests"
 python3 -c "
 import json
 for l in open('$SRV/data/requests.jsonl'):
-    d = json.loads(l); print(d['service'], d['method'], 'STUB' if d['stub'] else '')"
+    d = json.loads(l)
+    flags = [f for f in ('quiet', 'closed') if d.get(f)]
+    print(d['service'], d['method'], d['params'].get('config_name', ''), *flags)"
 echo "--- lua errors"
 adb logcat -d | grep "LUA-print" | sed 's/.*LUA-print\] //' | grep -E "LUA ERROR|failed:|attempt to" | sort -u | head -15
 echo "--- server stderr"

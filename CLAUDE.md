@@ -68,7 +68,11 @@ Commit only when the user asks.
 - New cards and items reach the client only through `data._client_cache_update`; its `remove` lists are read unguarded. Currency balances change only through `user_status`.
 - `cards.set_alignment` and `cards.butcher` are POST with a form body; `metal=` and `card_id=` repeat. `Request.lists` holds every value.
 - Tutorial progress is `user_status.guide` (`{"1": step}`); a new player starts at `{"1": 1}`. `game_guide_controller.getCurrentId` switches to team 2 as soon as `guide["2"] == 28`, so a team may only start after the previous one is done.
-- Cities unlock by player level (`map_main_story.open_level`), not by clearing the previous city. Cities 100 and 101 pad their maps with placeholder buildings sharing fight 100002; the tutorial expects city 100 to be 100% recovered after its one real building.
+- Cities unlock by player level (`map_main_story.open_level`), not by clearing the previous city.
+  The server opens every normal (not `is_hard`) chapter and city at level 1 by editing `chapter` and `map_main_story` (`sahht_server/config_overrides.py`); `loading` reports new versions for edited configs and the client downloads them through `/config/?method=all_config` and keeps them across launches.
+  The chapter picker (`game_chapter_pop`) taps `chapter:getNodeAt(i)`, so the served `chapter` lists normal chapters first by number.
+  The world map's `last_city` is the first normal city not 100% recovered; elite cities (301+, 401+) are in `cityid_cityorderid` too and must never be picked.
+- Cities 100 and 101 pad their maps with placeholder buildings sharing fight 100002; the tutorial expects city 100 to be 100% recovered after its one real building.
 - A city's land grid is its tmx map size / 4 (rows = tmx height); a cell outside the map makes the client's TMX lookup fail, a missing cell is drawn as fog.
 - Campaign battles are computed by the server; the client only plays back frames (`sort`, `attack`, `cur_data` with `maxHp`, `death`, final `winer`).
   `winer < 5` is a win. Defenders must carry `animation`. `has_battled` must be exactly `1`.
@@ -76,7 +80,7 @@ Commit only when the user asks.
 - City grids (`land`) exist in no config; the server packs buildings onto a 7x7 grid.
   Cell = `[openType, buildingId, icon, anchorFlag]`, openType 1 cleared, 2 attackable, 0 visible.
 - `step_n` is 0-based into the building's `fight_list`.
-- Enemies are looked up in `enemy_soldier_<city>.config` first, then `enemy_detail.config`.
+- Enemies are looked up in `enemy_soldier_<city>.config` first, then `enemy_soldier_<city of the enemy id>` (building 194011 borrows fight 199022), then `enemy_detail.config`.
 - Never send a `pre_battle` frame with skills in it: the client then loads `ccbResources/pre_battle_bg_res.plist`, which this APK lacks, and the native engine segfaults. Pre-battle skills are sent as ordinary `skill` frames.
 - A `skill` frame plays `skill_effect/<hero animation>/<name>.lua`; an unknown name is silently skipped. Status art is `add_buff {src, name}` with `skill_effect/buff/<name>.lua`.
 - `user.main_page` sends `inreview`: every view id to hide, the whole list every time (`game_data.updateInreviewByJsonData` resets it on each reply). A view id missing from `inreview.config` is shown by default. `active_switch` is never read by the client.
@@ -94,6 +98,7 @@ Python 3 standard library only (no pip installs).
 - `sahht_server/scope.py` + `data/scope_2018.json`: the content scope (modules with phase and open flag, view ids, `card_id_max` 38700, `city_order_max`, `quiet` bodies with evidence), validated at startup. `tools/audit_scope.py` inventories the client against it (`--draft` for a fresh draft); a view id is used when the Lua checks it (`isViewOpenByID`), lists it in a menu (`InReviewId = N`, `game_function_pop.lua`) or reads `in_review_N`.
 - `sahht_server/payment.py`: free recharge (`payment.use_ticket`, `shop.vip_buy_step`), table `payments` keyed by the client's order id.
 - `sahht_server/handlers.py`: login, boot and roster handlers, `user_status`, `ConfigCache` (loads `<name>.config` once, plus memoized derived indexes; uses an `RLock` because builders call `get()`), `card_document`, starter heroes `(5300, 100, 200)`.
+- `sahht_server/config_overrides.py`: server edits to APK configs (`ConfigCache.get` applies them, `raw` is the APK's copy), their versions in the `loading` map, served by `all_config`.
 - `sahht_server/campaign.py`: the four `private_city.*` handlers, city grid packing (`CityPlan`), unlock order, building battle units.
 - `sahht_server/battle.py` + `battle_unit.py`: the battle engine (skills, buffs, controls, DoTs, revives) and its frames. `skills.py` resolves a skill tier against `data/skill_specs.json`; `skill_spec.py` is the spec schema. Rules and the spec DSL: `server/SKILLS.md`.
 - `data/skill_specs.json`: hand-curated spec per base skill of every hero up to card 38700. `data/skill_anims.json`: client skill scripts per animation, regenerated with `python3 -m tools.build_skill_anims`.
@@ -109,7 +114,7 @@ Python 3 standard library only (no pip installs).
 
 ```
 cd server
-python3 -I -m unittest discover -s tests -t .          # 147 tests, about 50 s (scrypt dominates)
+python3 -I -m unittest discover -s tests -t .          # 152 tests, about 50 s (scrypt dominates)
 python3 -m tools.audit_scope                            # client modules, views, buttons, cities vs data/scope_2018.json (--draft)
 python3 -m sahht_server.skill_spec data/skill_specs.json   # validate the skill specs
 python3 -m sahht_server.app --port 8080                 # loopback only by default
@@ -158,6 +163,7 @@ Done and verified on the emulator:
 - Register, login, server list, config check, hot-update check, enter game.
 - The whole first tutorial with a fresh account: naming, first battle (level-up popup, player and card exp bars), city 100 recovered, recruiting, formation saved by POST, city 101, skipping a tutorial team.
 - Main scene combat power, the shop (buying with coin), the gacha pool chain.
+- The whole normal campaign (30 chapters, 120 cities) open from level 1 (2026-11-24); all 8384 normal fights resolve their enemies and run in the engine.
 - Phase 0 (2026-11-23): out-of-scope buttons hidden, closed features answer "Tính năng chưa mở.", free recharge (coin bag, VIP level, monthly card refused with "Gói này chưa mở.").
 
 Not done (see also `server/README.md`):

@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import unquote
 
+from . import config_overrides
 from .player import ensure_starter, guide_steps, seed_guides
 from .progression import Rules
 from .scope import Scope
@@ -48,7 +49,13 @@ class ConfigCache:
         self._lock = threading.RLock()
 
     def get(self, name: str) -> dict:
-        return self.derived(("config", name), lambda: self._load(name))
+        """A config as the server and the client use it: the APK's, with the server's edits."""
+        return self.derived(("config", name),
+                            lambda: config_overrides.apply(name, self.raw(name), self.get))
+
+    def raw(self, name: str) -> dict:
+        """A config exactly as the APK ships it."""
+        return self.derived(("raw", name), lambda: self._load(name))
 
     def derived(self, key, build):
         with self._lock:
@@ -190,7 +197,15 @@ def all_config(req: Request, svc: Services):
         paths = [svc.config_dir / f"{name}.config"]
     else:
         return fail("error_param", "Tên cấu hình không hợp lệ.")
-    return ok({p.stem: json.loads(p.read_text(encoding="utf-8")) for p in paths})
+    return ok({p.stem: _served_config(svc, p) for p in paths})
+
+
+def _served_config(svc: Services, path: Path) -> dict:
+    """The config the client downloads: the server's edited copy when there is one.
+    Unedited configs are read from disk each time, so the full dump stays out of the cache."""
+    if path.stem in config_overrides.EDITS:
+        return svc.configs.get(path.stem)
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def lua_manifest(version: str):

@@ -1,6 +1,7 @@
 """Campaign ("Xuất chiến") protocol: world map, city grid, enemy preview, server-side battles."""
 
 import dataclasses
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -8,7 +9,8 @@ from types import SimpleNamespace
 
 from sahht_server import campaign
 from sahht_server.battle import simulate
-from tests.test_flow import ServerCase
+from tests.test_flow import (BASE, FIXTURE_CONFIGS, ROOT, ServerCase, _building, _enemy,
+                              _fight)
 
 
 class CampaignCase(ServerCase):
@@ -196,3 +198,65 @@ class SimulatorTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class NormalCampaignUnlockTests(CampaignCase):
+    """Every normal chapter and city opens at level 1; elite (is_hard) ones keep their level."""
+
+    def extra_configs(self):
+        return {
+            # The APK's key order is by string ("1", "10", "101", ...), not by number.
+            "chapter": {"101": {"is_hard": 1, "open_level": 5}, "2": {"is_hard": 0, "open_level": 40},
+                        "1": {"is_hard": 0, "open_level": 1}},
+            "map_main_story": {
+                "1": {"stage_id": "100", "open_level": 1, "chapter": 1},
+                "2": {"stage_id": "101", "open_level": 40, "chapter": 2},
+                "1001": {"stage_id": "401", "open_level": 5, "chapter": 101}},
+            "cityid_cityorderid": {"100": "1", "101": "2", "401": "1001"},
+            "map_title_detail": {**FIXTURE_CONFIGS["map_title_detail"],
+                                 "101001": _building([101001]), "401001": _building([100001])},
+            # Building 101001 borrows a fight of city 102, whose enemies live in its own file.
+            "map_fight": {**FIXTURE_CONFIGS["map_fight"], "101001": _fight(102001)},
+            "enemy_soldier_102": {"102001": _enemy(250)},
+        }
+
+    def test_loading_reports_new_versions_for_the_edited_configs(self):
+        _, body = self.get(f"{BASE}/login/", method="loading")
+        apk = json.loads((ROOT / "data" / "game_config_version.json").read_text())
+        versions = body["game_config_version"]
+        self.assertNotEqual(versions["chapter"], apk["chapter"])
+        self.assertNotEqual(versions["map_main_story"], apk["map_main_story"])
+        self.assertEqual({k: v for k, v in versions.items()
+                          if k not in ("chapter", "map_main_story")},
+                         {k: v for k, v in apk.items() if k not in ("chapter", "map_main_story")})
+
+    def test_the_client_downloads_the_opened_configs(self):
+        _, body = self.get(f"{BASE}/config/", method="all_config", config_name="chapter")
+        chapters = body["data"]["chapter"]
+        self.assertEqual({k: v["open_level"] for k, v in chapters.items()},
+                         {"1": 1, "2": 1, "101": 5})
+        # The chapter picker taps getNodeAt(i) of the file: normal chapters first, by number.
+        self.assertEqual(list(chapters), ["1", "2", "101"])
+        _, body = self.get(f"{BASE}/config/", method="all_config", config_name="map_main_story")
+        self.assertEqual({v["stage_id"]: v["open_level"]
+                          for v in body["data"]["map_main_story"].values()},
+                         {"100": 1, "101": 1, "401": 5})
+
+    def test_a_level_1_player_reaches_every_normal_city(self):
+        data = self.call("world_map")["data"]
+        self.assertEqual(data["all_city_regain_percent"], {"100": 0, "101": 0})
+        body = self.call("recapture", city="101", building="101001", step_n="0")
+        self.assertEqual(body["status"], 0, body)
+        self.assertEqual(body["data"]["battle"]["winer"], 1)
+
+    def test_the_map_opens_on_the_first_normal_city_not_recovered(self):
+        store = self.server.services.store
+        store.set_level(self.uid, 5, 0, 0)   # reaches elite city 401 too
+        for building in (100001, 100002, 100003):
+            store.mark_cleared(self.uid, building)
+        data = self.call("world_map")["data"]
+        self.assertIn("401", data["all_city_regain_percent"])
+        self.assertEqual((data["last_chapter"], data["last_city"]), ("2", "101"))
+        store.mark_cleared(self.uid, 101001)
+        data = self.call("world_map")["data"]
+        self.assertEqual((data["last_chapter"], data["last_city"]), ("2", "101"))

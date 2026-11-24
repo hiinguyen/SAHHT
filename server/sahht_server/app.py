@@ -10,7 +10,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
-from . import campaign, cards, gacha, handlers, payment, shop
+from . import campaign, cards, config_overrides, gacha, handlers, payment, shop
 from . import scope as scope_module
 from .player import user_status
 from .handlers import ConfigCache, Request, Services
@@ -186,7 +186,9 @@ class GameServer(ThreadingHTTPServer):
 
 
 def build_server(host, port, db_path, config_dir, version_map_path, request_log, scope_path=None):
-    version_map = json.loads(Path(version_map_path).read_text(encoding="utf-8"))
+    configs = ConfigCache(config_dir)
+    apk_versions = json.loads(Path(version_map_path).read_text(encoding="utf-8"))
+    version_map = config_overrides.version_map(apk_versions, configs)
     scope = Scope.load(scope_path or scope_module.DEFAULT_PATH)   # a bad file stops the start
     # Bound only once services exist: a failed bind calls server_close(), which closes the store.
     server = GameServer((host, port), GameHandler, bind_and_activate=False)
@@ -195,7 +197,7 @@ def build_server(host, port, db_path, config_dir, version_map_path, request_log,
         config_dir=Path(config_dir),
         version_map=version_map,
         all_config_version=handlers.version_map_etag(version_map),
-        configs=ConfigCache(config_dir),
+        configs=configs,
         scope=scope,
     )
     server.request_log = RequestLog(request_log)
