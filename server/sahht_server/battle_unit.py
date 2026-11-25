@@ -88,14 +88,18 @@ class Unit:
     def attack(self) -> float:
         return max(self.stat("patk"), self.stat("matk"))
 
+    def own_element(self) -> str:
+        """The element a unit's `own` attack uses: its strongest, fire on a tie."""
+        return max(ELEMENTS, key=lambda e: self.elements.get(e, 0))
+
     def element_atk(self, element: str) -> float:
         if element == "own":
-            element = max(ELEMENTS, key=lambda e: self.elements.get(e, 0))
+            element = self.own_element()
         return self.elements.get(element, 0) * (1 + self.stat("attr_atk") / 100)
 
     def element_dfs(self, element: str) -> float:
         if element == "own":
-            return 0
+            element = self.own_element()
         return self.element_def.get(element, 0) * (1 + self.stat("attr_def") / 100)
 
     def has(self, status: str) -> bool:

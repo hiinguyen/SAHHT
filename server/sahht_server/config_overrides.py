@@ -4,9 +4,11 @@ The server reads the edited configs itself, and `loading` reports a new version 
 edited one, so the client downloads it through `all_config` (game_resources_download2
 startCfg) and both sides apply the same rules without reinstalling the APK.
 
-The only edit opens the whole normal campaign: every normal (not elite) chapter and city
+One edit opens the whole normal campaign: every normal (not elite) chapter and city
 opens at player level 1. The world map (map_world_scene) hides a chapter and greys out a
 city by comparing the player level with `open_level`, so the edit has to reach the client.
+Another hides the skin button, whose system is not implemented yet.
+The activity hall edits keep to the rows this server serves and the survival levels that have fights.
 """
 
 import hashlib
@@ -41,8 +43,53 @@ def _map_main_story(raw: dict, get) -> dict:
     return _open_rows(raw, lambda row: str(row.get("chapter")) in normal)
 
 
+def _character_detail(raw: dict, get) -> dict:
+    """Hide the unfinished per-hero skin feature. Skins are the only thing this override
+    still touches: the 5-skill swap is implemented, so `skill_num` stays 5."""
+    edited = {}
+    for key, row in raw.items():
+        if isinstance(row, dict) and row.get("is_skin"):
+            row = {**row, "is_skin": 0}
+        edited[key] = row
+    return edited
+
+
+# Hall rows (active.config) with a screen this server serves; the popup lists every other
+# row whose `is_see` the player level reaches, and some crash without data.
+SERVED_HALL_ROWS = {"40", "50", "60", "70", "80"}
+HIDDEN = 1000
+
+
+def _active(raw: dict, get) -> dict:
+    return {key: {**row, "is_see": HIDDEN}
+            if isinstance(row, dict) and key not in SERVED_HALL_ROWS else row
+            for key, row in raw.items()}
+
+
+def _active_fight_forever(raw: dict, get) -> dict:
+    """Survival levels past the last one with a fight (151-200 have none)."""
+    fights = get("map_fight")
+    return {key: row for key, row in raw.items()
+            if isinstance(row, dict) and str(row.get("fight")) in fights}
+
+
+ELITE_GUIDE_TEAM = "64"   # button 800 (elite stages) opens with this tutorial team
+ELITE_OPEN_LEVEL = 6      # the lowest elite chapter; below it the chapter list is empty
+
+
+def _guide_team(raw: dict, get) -> dict:
+    """Open the elite tab by player level: the client's own fallback does that for
+    `open_sort` 2, and the original rule (reach a city) needs tutorial state."""
+    row = raw.get(ELITE_GUIDE_TEAM)
+    if not isinstance(row, dict):
+        return raw
+    return {**raw, ELITE_GUIDE_TEAM: {**row, "open_sort": 2, "open_value": ELITE_OPEN_LEVEL}}
+
+
 # config name -> (raw config, get(name) for other configs) -> edited config
-EDITS = {"chapter": _chapter, "map_main_story": _map_main_story}
+EDITS = {"chapter": _chapter, "map_main_story": _map_main_story,
+         "character_detail": _character_detail, "active": _active,
+         "active_fight_forever": _active_fight_forever, "guide_team": _guide_team}
 
 
 def apply(name: str, raw: dict, get) -> dict:

@@ -13,6 +13,7 @@ import time
 from datetime import datetime, timedelta, timezone
 
 from .handlers import TIMEZONE, Request, Services, fail, is_int, ok
+from .player import vip_level
 from .rewards import (CARD, CURRENCY_BY_TYPE, ITEM, PLAYER_EXP, Loot, client_cache, grant,
                       merge_cache, open_box, pay)
 
@@ -24,7 +25,7 @@ LOCAL = timezone(timedelta(hours=TIMEZONE))
 USE_BOX, USE_STAMINA, USE_EXP_BALL = 1, 2, 19
 
 
-def _period(sort: int, now: int) -> str:
+def period(sort: int, now: int) -> str:
     day = datetime.fromtimestamp(now, LOCAL).date()
     if sort == DAILY:
         return day.isoformat()
@@ -52,7 +53,7 @@ def _on_sale(entry: dict, level: int, now: int) -> bool:
 
 
 def _bought(svc: Services, uid: str, shop_id: str, entry: dict, now: int) -> int:
-    return svc.store.counter(uid, f"shop:{shop_id}", _period(entry.get("sell_sort", 0), now))
+    return svc.store.counter(uid, f"shop:{shop_id}", period(entry.get("sell_sort", 0), now))
 
 
 def shop_open(req: Request, svc: Services, player: dict):
@@ -83,7 +84,7 @@ def shop_buy(req: Request, svc: Services, player: dict):
     with svc.store.transaction():
         pay(svc, uid, {"coin": price})
         svc.store.set_counter(uid, f"shop:{shop_id}", bought + count,
-                              _period(entry.get("sell_sort", 0), now))
+                              period(entry.get("sell_sort", 0), now))
         granted = grant(svc, uid, loot, now)
     return ok({"bought": bought + count, "goods": granted.reward,
                "_client_cache_update": granted.cache})
@@ -127,8 +128,44 @@ def item_use(req: Request, svc: Services, player: dict):
     return ok({"effect": granted.reward, "_client_cache_update": merge_cache(granted.cache, used)})
 
 
+def _vip_bought(svc: Services, uid: str) -> dict:
+    """shop id -> bought count, the map game_vip_shop keeps in `m_shop_data`."""
+    return {str(shop_id): bought for shop_id in svc.configs.get("vip_store")
+            if (bought := svc.store.counter(uid, f"vip_shop:{shop_id}"))}
+
+
+def vip_store_index(req: Request, svc: Services, player: dict):
+    return ok({"date": _vip_bought(svc, player["uid"])})
+
+
+def vip_store_buy(req: Request, svc: Services, player: dict):
+    """The SHHHT VIP shop (ui_vip btnTag 301): vip_store.config stock bought with coin."""
+    uid, now = player["uid"], int(time.time())
+    shop_id, count = req.params.get("shop_id", ""), req.params.get("count", "1")
+    entry = svc.configs.get("vip_store").get(shop_id)
+    if entry is None or not is_int(count) or not 1 <= int(count) <= MAX_COUNT:
+        return fail("error_param", "Vật phẩm không bán.")
+    count = int(count)
+    vip = vip_level(svc.configs, svc.store.wallet(uid).get("vip_exp", 0))
+    if vip < entry.get("show_vip", 0):
+        return fail("error_vip", "Chưa đạt cấp VIP.")
+    bought = svc.store.counter(uid, f"vip_shop:{shop_id}")
+    if bought + count > entry.get("sell_max", 0):
+        return fail("error_sell_max", "Đã hết lượt mua.")
+    price = (entry.get("need_value") or [[9, 0, 0]])[0][2] * count
+    loot = Loot.of([[kind, ref, n * count] for kind, ref, n in entry.get("shop_item", [])])
+    with svc.store.transaction():
+        pay(svc, uid, {"coin": price})
+        svc.store.set_counter(uid, f"vip_shop:{shop_id}", bought + count)
+        granted = grant(svc, uid, loot, now)
+    return ok({"goods": [], "reward": granted.reward, "date": _vip_bought(svc, uid),
+               "_client_cache_update": granted.cache})
+
+
 HANDLERS = {
     ("api", "shop.open"): shop_open,
     ("api", "shop.buy"): shop_buy,
+    ("api", "shop.vip_store_index"): vip_store_index,
+    ("api", "shop.vip_store_buy"): vip_store_buy,
     ("api", "item.use"): item_use,
 }

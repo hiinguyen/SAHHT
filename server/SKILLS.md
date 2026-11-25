@@ -1,8 +1,11 @@
-# Hero skills
+# Hero and enemy skills
 
 The original server ran one Python script per skill (`skill_detail.sprite_py`), and none of them shipped with the client.
-This server rebuilds them as data: `data/skill_specs.json` describes every skill chain of every hero up to card id 38700 (heroes released through 2018) as a list of effects, and `sahht_server/battle.py` runs those effects.
-`sahht_server/skill_spec.py` is the schema; `python3 -m sahht_server.skill_spec data/skill_specs.json` checks a file.
+This server rebuilds them as data: `data/skill_specs.json` describes every skill chain of every hero up to card id 38700 (heroes released through 2018), and `data/enemy_skill_specs.json` describes the 150 campaign-enemy skills that are not already hero skills (166 ids in total; the other 16 are legacy 4-digit hero base skills).
+Both files use the same DSL and `sahht_server/battle.py` runs their effects; `sahht_server/skills.py` loads both and refuses a key defined twice.
+`sahht_server/skill_spec.py` is the schema; `python3 -m sahht_server.skill_spec data/skill_specs.json data/enemy_skill_specs.json` checks files.
+
+`data/leader_skill_specs.json` is a third, smaller file for leader skills (`sahht_server/leader_skill.py`, see the last section).
 
 ## What a spec is keyed by
 
@@ -18,6 +21,8 @@ Any number in a spec may be a literal or one of these words:
 - `"effect"`: the tier's `effect + effect_lvchange * skill_level`, exactly what the client shows in place of the word `effect` in the description.
 - `"attr"`: the tier's `attr_effect` (element damage percent; the description writes it as a literal such as `140%` or as `attr_effect%`).
 - `"-effect"` / `"-attr"`: the same, negated, for reductions such as "giảm effect% phòng ngự" (`"value": "-effect"`).
+- `"effect100"` / `"attr100"`: the same divided by 100, for rows whose effect is written in basis points (`42420` has `effect` 800 = 8%).
+- `"effect+20"` / `"effect-20"`: the same plus or minus a literal (`41430`'s "effect+20%" ST).
 
 Percentages are written as plain numbers: `150` means 150%.
 Use the literal numbers the base skill's description states (for example "kéo dài 2 hiệp" is `"rounds": 2`).
@@ -103,7 +108,7 @@ Any effect may add `count` to cap how many of the selected units it touches.
 
 | `op` | Fields | Meaning |
 |---|---|---|
-| `damage` | `type` (`phys`, `magic`, `true`), `scale`, `stat`, `ignore_def`, `hits`, `bonus`, `crit` | Damage of `scale`% of the caster's `stat`. `stat` defaults to `patk` for `phys` and `true`, `matk` for `magic`. Other stats: `def`, `speed`, `max_hp` (caster's), `hp_lost` (caster's missing HP), `target_max_hp`, `target_hp`, `target_def`, `damage_taken` (damage the caster just took, for counters). `phys` and `magic` are reduced by the target's defense, minus `ignore_def` percent; `true` ignores defense ("sát thương thực", "không thể phòng ngự", "bỏ qua phòng ngự"). `hits` splits the damage into that many blows (display only). `bonus` is a list of `{"if": cond, "pct": n}`: `pct`% more damage when the condition holds ("nếu mục tiêu đang bị thiêu đốt thì tạo thêm 100% sát thương"). `crit`: `always` or `never`. |
+| `damage` | `type` (`phys`, `magic`, `true`), `scale`, `stat`, `ignore_def`, `hits`, `bonus`, `crit`, `sure_hit`, `crit_bonus` | Damage of `scale`% of the caster's `stat`. `stat` defaults to `patk` for `phys` and `true`, `matk` for `magic`. Other stats: `def`, `speed`, `max_hp` (caster's), `hp_lost` (caster's missing HP), `target_max_hp`, `target_hp`, `target_def`, `damage_taken` (damage the caster just took, for counters). `phys` and `magic` are reduced by the target's defense, minus `ignore_def` percent; `true` ignores defense ("sát thương thực", "không thể phòng ngự", "bỏ qua phòng ngự"). `hits` splits the damage into that many blows (display only). `bonus` is a list of `{"if": cond, "pct": n}`: `pct`% more damage when the condition holds ("nếu mục tiêu đang bị thiêu đốt thì tạo thêm 100% sát thương"). `crit`: `always` or `never`; `crit_bonus` adds percentage points of crit chance for this hit ("+50% tỉ lệ bạo kích"); `sure_hit` skips the hit roll ("chắc chắn trúng"). |
 | `attr_damage` | `element` (`fire`, `water`, `wind`, `earth`, `own`), `scale` | Element damage: `scale`% of the caster's element attack minus the target's element defense. "sát thương thuộc tính Gió" is `wind`; "Lửa/Hỏa" `fire`, "Nước/Thủy" `water`, "Đất/Thổ" `earth`; unnamed element is `own`. Usually `"scale": "attr"`. |
 | `heal` | `scale`, `of` | Restore `scale`% of: `max_hp` (the healed unit's), `lost_hp` (its missing HP), `patk` / `matk` / `def` (the caster's), `damage` (damage this cast dealt; lifesteal such as "10% sát thương chuyển hóa thành HP"). |
 | `buff` | `stat`, `value`, `rounds`, `max_stack` | Change a stat for `rounds` rounds (`0` = rest of battle). Negative `value` is a debuff. `patk`, `matk`, `def`, `speed`, `max_hp`, `all` (patk+matk+def+speed), `attr_atk`, `attr_def` are percent of the unit's base value; `crit`, `dodge` ("né tránh"), `hit` ("chính xác"), `dmg_dealt` ("tăng sát thương"), `dmg_taken` (negative: "giảm sát thương phải chịu", "giảm thương"), `heal_taken`, `lifesteal`, `reflect` ("phản đòn x% sát thương") are percentage points. `max_stack` lets repeated casts add up ("tối đa dồn 3 lần"); without it a recast refreshes. |
@@ -130,7 +135,8 @@ Written as `name` or `name:arg`; a list means all must hold.
 | `target_has:<status>` / `target_lacks:<status>` / `self_has:<status>` | The unit carries that status. Statuses: any control kind, any DoT kind, `control` (any), `debuff` (any), `buff` (any), `shield`, `invincible`. |
 | `self_state:<name>` / `self_lacks_state:<name>` | The caster is (not) in a `state`. |
 | `target_boss` / `target_not_boss` | The target is (not) a boss. |
-| `target_race:<n>` / `enemy_has_race:<n>` | The target is / some enemy is of race n (0 sức mạnh, 1 nguyên tố, 2 Zombie, 3 bản địa, 4 lí tính, 5 linh tính). |
+| `target_race:<n>` / `target_not_race:<n>` | The target is / is not of race n (0 sức mạnh, 1 nguyên tố, 2 Zombie, 3 bản địa, 4 lí tính, 5 linh tính). |
+| `enemy_has_race:<n>` / `ally_has_race:<n>` / `ally_lacks_race:<n>` | Some enemy / some ally is of race n; no ally is. |
 | `target_hp_below:<n>` / `target_hp_above:<n>` / `self_hp_below:<n>` / `self_hp_above:<n>` | HP percent below / above n. |
 | `round_ge:<n>` / `round_le:<n>` | Current round number. |
 | `target_atk_higher` / `target_atk_lower` / `target_speed_higher` | Comparison of the target's attack (max of patk, matk) or speed with the caster's. |
@@ -145,10 +151,30 @@ Written as `name` or `name:arg`; a list means all must hold.
 - Otherwise its first ready `active` skill (slot order) whose `rate` roll succeeds is cast, unless the unit is silenced; failing that it makes a normal attack.
 - A normal attack is 100% physical damage, or magical when the unit's `matk` is higher than its `patk`.
 - Physical and magical damage is `raw * raw / (raw + defense)` with `raw = stat * scale / 100`, then multiplied by `1 + dmg_dealt/100` and `1 + dmg_taken/100`; it is at least 1.
-- Every hit rolls hit (`hit - dodge` percent, at least 5%) and crit (`crit` percent, 150% damage).
-- Heroes have crit 10, hit 100, dodge 0; campaign enemies use their `crit`, `hr` and `dr`.
-- Element stats come from equipment and gems, which this server does not have yet, so heroes deal no element damage; enemies use their `fire`, `water`, `wind`, `earth` and `*_dfs`.
+- Every hit rolls hit (`hit - dodge` percent, at least 5%) and crit (`crit` percent, 150% damage); `sure_hit` skips the first roll.
+- "Giảm thương" (`subhurt`) removes that percentage of the final damage, on top of `dmg_taken`.
+- Heroes have a base of crit 10, hit 100, dodge 0 and add their gear's `crit`, `hit`, `dodge` and `subhurt`; campaign enemies use their `crit`, `hr`, `dr` and `subhurt`.
+- Element stats come from equipment (suit effects, enchant `atts`) and add to combat power 1:1; in battle they feed `attr_damage` (an `own` element is the caster's strongest). Normal attacks do not add element damage, because no source states that rule.
 - Not wiping the enemy within 30 rounds is a loss.
+
+## Leader skills
+
+`leader_skill.config` has 96 rows; only the 12 whose `script` has a file in
+`skill_effect/leader_skill/` are learnable (the rest are passive nodes whose scripts never
+shipped). `data/leader_skill_specs.json` describes those 12 with a small DSL:
+
+| field | meaning |
+|---|---|
+| `aim` | default target (`enemy_all`, `enemy_front`, `enemy_random`, `enemy_lowest_hp`, `ally_all`, `ally_lowest_hp`) |
+| `effects` | `{"op": "damage", "type", "stat", "scale"}` and `{"op": "control", "kind", "rounds"}`, each with an optional `target` |
+| `stat` | `ally_max_matk`, `ally_avg_matk`, `ally_max_patk`, `enemy_max_matk`, `enemy_max_patk` |
+| `scale` | `effect1` / `effect2` (resolved from `base_effect1/2` + `add_effect1/2` per level) or a literal |
+
+In battle the player side has a rage bar (0..100): +10 when an ally acts, +5 when an ally is
+hit. At the start of a round with 100 rage the first equipped skill whose `ready_time` and
+`cd` are satisfied casts, emitting a `skill_hero` frame (`{src: 0, name: <script>, skillid,
+des, hurt}`), then rage returns to 0. Leader damage is `stat * scale%` without the normal
+defense step. These are server rules: the client has no formula for any of them.
 
 ## Curation rules
 

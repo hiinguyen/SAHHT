@@ -13,8 +13,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import unquote
 
-from . import config_overrides
-from .player import ensure_starter, guide_steps, seed_guides
+from . import config_overrides, equipment, gems
+from .player import ensure_starter, ensure_starter_equipment, guide_steps, seed_guides
 from .progression import Rules
 from .scope import Scope
 from .store import ATTACK_SLOTS, Store
@@ -226,7 +226,8 @@ def card_documents(svc: Services, uid: str) -> dict:
     """Every card of the player as the client reads it, keyed by card id."""
     rules = Rules.load(svc.configs)
     level = svc.store.player_for_uid(uid)["level"]
-    return {c["id"]: rules.card_document(c, level) for c in svc.store.cards_for_player(uid)}
+    docs = {c["id"]: rules.card_document(c, level) for c in svc.store.cards_for_player(uid)}
+    return equipment.add_bound_equipment(svc.configs, svc.store.equipment_rows(uid), docs)
 
 
 def alignment(cards: list) -> list:
@@ -265,8 +266,25 @@ def team_combat(svc: Services, uid: str) -> int:
     rules = Rules.load(svc.configs)
     cards = svc.store.cards_for_player(uid)
     level = svc.store.player_for_uid(uid)["level"]
-    return rules.team_combat({c["slot"]: rules.card_document(c, level)
-                              for c in cards if c["slot"] is not None})
+    rows = svc.store.equipment_rows(uid)
+    by_id = {e["id"]: e for e in rows}
+    equipped = {}
+    for position, _, equip_id in svc.store.equipment_positions(uid):
+        equipped.setdefault(position, []).append(equip_id)
+    jewels = gems.keys_by_position(svc.store.gem_positions(uid))
+    bound = equipment.bound_by_card(svc.configs, rows)
+    docs, fates = {}, {}
+    for card in cards:
+        if card["slot"] is None:
+            continue
+        doc = rules.card_document(card, level)
+        stats = gems.add_stats(
+            equipment.bonus(svc.configs, equipped.get(card["slot"], []), by_id),
+            gems.bonus(svc.configs, jewels.get(card["slot"], [])))
+        docs[card["slot"]] = equipment.with_bonus(doc, stats)
+        fates[card["slot"]] = equipment.fate_percent(
+            svc.configs, list(bound.get(card["id"], {}).values()), by_id)
+    return rules.team_combat(docs, fates)
 
 
 def item_stacks(svc: Services, uid: str) -> dict:
@@ -281,6 +299,7 @@ def item_stacks(svc: Services, uid: str) -> dict:
 
 def mark_user_login(req: Request, svc: Services, player: dict):
     ensure_starter(svc, player)
+    ensure_starter_equipment(svc, player)
     return ok({"mk": secrets.token_hex(8)})
 
 
@@ -288,13 +307,23 @@ def cards_open(req: Request, svc: Services, player: dict):
     # Every other cards.open setter returns early on a missing key, so keys are
     # only sent once their exact shape is known; a wrong shape is a Lua error.
     ensure_starter(svc, player)
+    ensure_starter_equipment(svc, player)
     uid = player["uid"]
     return ok({
         "cards": card_documents(svc, uid),
         "alignment": alignment(svc.store.cards_for_player(uid)),
-        "equip_pos": {str(i): ["0", "0", "0", "0"] for i in range(FORMATION_SLOTS)},
+        "equip_pos": equipment.grid(svc.store.equipment_positions(uid)),
+        # Gem stacks (key -> count) and where they sit; gemInGemPos indexes every
+        # position unguarded whenever a gem screen opens, so the grid is always complete.
+        "gem": svc.store.gems(uid),
+        "gem_pos": gems.grid(svc.store.gem_positions(uid)),
+        # God-field gear grids (no system yet): drawing any equipment icon indexes them.
+        **{f"equip_pos_{n}": equipment.grid(()) for n in (1, 2, 3)},
+        # Cheer-formation gear (no system yet): equipInBonus reads keys "200".."209".
+        "bonus_equip_pos": {str(i): [0] * equipment.SLOTS for i in range(200, 210)},
         "formation": formation_document(svc, uid),
-        "items": item_stacks(svc, uid), "equip": {},
+        "items": item_stacks(svc, uid),
+        "equip": equipment.documents(svc.store.equipment_rows(uid)),
         "battle_card_num": {"position_num": POSITION_NUM, "alternate_num": ALTERNATE_NUM},
         # The cheer-formation system does not exist yet, but every hero card drawn
         # outside the formation screen (gacha results, lists) iterates these with pairs().

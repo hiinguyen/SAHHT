@@ -2,3 +2,4 @@ data/sahht.db
 data/requests.jsonl
 __pycache__/
 build/
+data/admin_token

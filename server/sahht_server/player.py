@@ -2,13 +2,20 @@
 
 import time
 
+from . import equipment
 from .progression import Rules
 
 # The client's own starter (role_detail position1) plus two basic quality-3 heroes.
 STARTER_HEROES = (5300, 100, 200)
 STARTER_ROLE = "1"   # role_detail row whose `item` list is the starting bag
 # Starting money. `silver` ("Vàng") pays gold recruits: the tutorial draw costs 250.
-STARTER_WALLET = {"coin": 1000, "food": 10000, "silver": 2000}
+# `star` pays leader skills; the daily loop that normally grants it is not built yet,
+# so the starter kit carries enough for the first few levels.
+STARTER_WALLET = {"coin": 1000, "food": 10000, "silver": 2000, "star": 1000}
+# The tutorial's second team says "you have a weapon, go equip and enhance it";
+# give the same low-level weapon it expects instead of leaving the bag empty.
+STARTER_EQUIPMENT = (10101,)
+STARTER_EQUIPMENT_COUNTER = "starter_equipment"
 STARTER_COUNTER = "starter_kit"
 
 FIRST_GUIDE_TEAM, FIRST_GUIDE_START, FIRST_GUIDE_DONE = "1", 1, 27
@@ -25,12 +32,12 @@ CURRENCIES = (
     "small_forge_stone", "middle_forge_stone", "high_forge_stone", "grace", "grace_high",
     "cmdr_energy", "free_train_times", "universe_coin", "rune_stone", "pink_coin",
     "pet_exp_ball", "enchant", "association_dedication", "arena_point", "refine_stone",
-    "pet_skill_stone",
+    "pet_skill_stone", "min_fate_stone", "mid_fate_stone", "max_fate_stone",
 )
 # Keys read with no `or default` fallback that have no game system behind them yet.
 _FIXED_STATUS = {
     "association_id": 0, "cur_title": 0,
-    "card_max": 200, "equip_max": 100, "role": 1,
+    "card_max": 200, "equip_max": equipment.EQUIP_MAX, "role": 1,
 }
 # Gold tickets ("Vé vàng") are how the client pays for recharge packs
 # (native_helper.buyProduct). Recharge is free on this server, so the balance is fixed
@@ -68,6 +75,17 @@ def ensure_starter(svc, player: dict) -> None:
         # needs; adding nothing runs the level-up walk once and settles them.
         gain_exp(svc, uid, 0, int(time.time()))
         svc.store.set_counter(uid, STARTER_COUNTER, 1)
+
+
+def ensure_starter_equipment(svc, player: dict) -> None:
+    """Give the tutorial's first weapon to new and pre-equipment accounts, exactly once."""
+    uid = player["uid"]
+    with svc.store.transaction():
+        if svc.store.counter(uid, STARTER_EQUIPMENT_COUNTER):
+            return
+        if not svc.store.equipment_rows(uid):
+            svc.store.add_equipment(uid, STARTER_EQUIPMENT)
+        svc.store.set_counter(uid, STARTER_EQUIPMENT_COUNTER, 1)
 
 
 def gain_exp(svc, uid: str, amount: int, now: int):

@@ -86,6 +86,13 @@ Commit only when the user asks.
 - `user.main_page` sends `inreview`: every view id to hide, the whole list every time (`game_data.updateInreviewByJsonData` resets it on each reply). A view id missing from `inreview.config` is shown by default. `active_switch` is never read by the client.
 - A reply with an error status and a `msg` shows a popup and skips the screen's callback; `error_not_open` is used for closed features.
 - Recharge: the client pays in gold tickets (`user_status.ticket`, fixed at 9999); `cpOrderId` is `<uid>_<server>_<pack>_<time>_<channel>_<random>`. `shop.vip_buy_step` `double_pay` is an array of numeric pack ids; `month_award`/`week_award` must be `2` or the client shows a local tip instead of calling `payment.use_ticket`.
+- Leader skills: `leader_skill.open|train|set_skill` answer one harbor document: `available_skill` (id -> learned level), `leader_skill` (`skill_1..3`), `skill_point` (`{"1":[0,0],...}`) and `available_tree`; a missing one is an unguarded Lua index. `skill_point` is read as `[a, b]`.
+  `train` costs `leader_skill_develop[skill].star_{level+1}` in `star`; `is_max=1` buys as far as the balance allows.
+- `battle.init` must carry `atk_skill` (exactly 3 leader ids, 0 padded), `dfd_skill` [0,0,0], `atk_role` 1 and `dfd_role` 0; a missing role key or a short skill array crashes the scene.
+  Rage is a 0-100 bar driven by `anger` frames `{src: 0|1, value}`; `skill_hero` `{src, name, skillid, des, hurt}` plays `skill_effect/leader_skill/<name>.lua` and resets the bar.
+- 5-skill heroes: `cards.select_skill_index` answers `data.skill[1..5]`; `cards.set_battle_skill` takes `skill_ids` as three slot numbers joined by `_` and the client always appends a trailing `_`. `avail` 0 locked, 1 unlocked but not in the battle set, 2 in the battle set (exactly three); only `skill_num == 5` shows the exchange button.
+- Enemy skills run through the same engine and spec DSL as heroes; never emit `pre_battle` for them either.
+- Gear feeds `crit`, `hit`, `dodge`, `subhurt` and the 8 elemental stats into battle; elemental stats also enter combat power 1:1 outside the skill factor, as `getCombatValue` does.
 - When a Lua error happens inside a screen, the log line is `SHHHT enterUi <scene> failed: ...` or `LUA ERROR: ...`; after a swallowed error the client may silently return to the login scene.
 
 ## Server architecture (`server/`)
@@ -99,13 +106,18 @@ Python 3 standard library only (no pip installs).
 - `sahht_server/payment.py`: free recharge (`payment.use_ticket`, `shop.vip_buy_step`), table `payments` keyed by the client's order id.
 - `sahht_server/handlers.py`: login, boot and roster handlers, `user_status`, `ConfigCache` (loads `<name>.config` once, plus memoized derived indexes; uses an `RLock` because builders call `get()`), `card_document`, starter heroes `(5300, 100, 200)`.
 - `sahht_server/config_overrides.py`: server edits to APK configs (`ConfigCache.get` applies them, `raw` is the APK's copy), their versions in the `loading` map, served by `all_config`.
-- `sahht_server/campaign.py`: the four `private_city.*` handlers, city grid packing (`CityPlan`), unlock order, building battle units.
+- `sahht_server/campaign.py`: the four `private_city.*` handlers, city grid packing (`CityPlan`), unlock order, building battle units, `battle.init` (leader ids and `atk_role`).
+- `sahht_server/leader_skill.py` + `leader_skills.py`: the leader-skill book, the `leader_skill.*` handlers and the rage rules the engine runs.
 - `sahht_server/battle.py` + `battle_unit.py`: the battle engine (skills, buffs, controls, DoTs, revives) and its frames. `skills.py` resolves a skill tier against `data/skill_specs.json`; `skill_spec.py` is the spec schema. Rules and the spec DSL: `server/SKILLS.md`.
-- `data/skill_specs.json`: hand-curated spec per base skill of every hero up to card 38700. `data/skill_anims.json`: client skill scripts per animation, regenerated with `python3 -m tools.build_skill_anims`.
+- `data/skill_specs.json`: hand-curated spec per base skill of every hero up to card 38700. `data/enemy_skill_specs.json`: the 150 campaign-enemy skills that are not hero skills (same DSL). `data/leader_skill_specs.json`: the 12 leader skills with a shipped effect script. `data/skill_anims.json`: client skill scripts per animation, regenerated with `python3 -m tools.build_skill_anims`.
 - `sahht_server/store.py`: SQLite data only, no game rules; `transaction()` makes multi-step changes atomic. Tables `accounts`, `players` (uid = id + 10000, level), `cards` (`step` = evolution, `slot` 0-4 attack, 5-9 bench), `card_skills`, `player_state` (stamina, exp inside the level), `wallet`, `items`, `guide`, `cleared_buildings`, `building_steps`, `counters` (gacha draws, shop purchases with a daily/weekly period, formation, starter kit), `payments`.
   Schema changes are appended to `MIGRATIONS` (applied in order, counted by `PRAGMA user_version`); never edit an applied migration.
 - `sahht_server/progression.py`: rules from the configs (player and card levels, card documents with evolution stats and skill tiers, combat power). `player.py`: starter kit, player exp, tutorial teams, `user_status`. `rewards.py`: `[type, id, count]` rewards, weighted rolls, boxes, `grant()` and `_client_cache_update`.
 - `sahht_server/cards.py` (formation, inherit, skill level-up, evolution, selling), `gacha.py`, `shop.py` (shop and `item.use`). A handler raises `handlers.Refused` inside a transaction to roll back and answer an error.
+- `sahht_server/difficulty.py`: hardens every campaign enemy on its way into `campaign._enemy` (stats ramp, milestone gate cities at player level 20, 30, ..., boss and hero enemies from the 2018 roster; tutorial cities untouched, elite cities have their own tier). The knobs are the constants at its top; `tools/simulate_campaign.py --heroes a,b,c,d,e` measures a team. Spec: `docs/superpowers/specs/2026-11-25-phase-4-difficulty.md`.
+- `sahht_server/active.py` + `survival.py`: the activity hall (`active.index`, hall rows 40/50/60/70/80: resource war, daily and extreme challenge, exp stage, survival). `config_overrides` hides every other hall row (an unserved row crashes the popup) and trims survival to its 150 levels with fights. Each hall row needs exactly one chapter in `index` for today's weekday.
+- `sahht_server/elite.py`: elite stages (tab "Ải Tinh Anh", cities 301-320; the client sends `hard_open?city=301&chapter=201`), one attempt at a time, state in `elite_*` tables; `private_city.open` and `world_map` are wrapped to answer elite cities.
+- `sahht_server/gm.py` + `gm_api.py` + `tools/admin.py` + `gm-app/`: game-master tooling. `gm.py` finds ids, makes accounts and gives cards/items/gear/gems/currency; `tools/admin.py` is its command line (`account`, `give`, `find`, `show`, `token`); `gm_api.py` is the `admin` HTTP service (GET, `token=`), on only when `server/data/admin_token` exists (gitignored; `python3 -m tools.admin token`). `gm-app/` is the phone app (package `vn.sahht.gm`, one WebView page in `assets/index.html`); `bash gm-app/build.sh` builds `gm-app/build/sahht-gm.apk` without Gradle (needs `platforms;android-34`). A phone reaches the server only when it runs with `--host 0.0.0.0`; the emulator uses `http://10.0.2.2:8080`.
 - `tools/patch_apk.py`: repoints the client at a URL, rebuilds the APK without the old signature, zipaligns and signs with `~/.android/debug.keystore`.
 - `tools/cycle.sh`: one emulator test cycle (restart server, relaunch app, tap "Vào game", print requests and Lua errors, screenshot).
 - Handlers are `(Request, Services[, player]) -> body`; register login handlers in `handlers.LOGIN_HANDLERS`, session handlers in `handlers.SESSION_HANDLERS` or `campaign.HANDLERS`.
@@ -116,7 +128,9 @@ Python 3 standard library only (no pip installs).
 cd server
 python3 -I -m unittest discover -s tests -t .          # 152 tests, about 50 s (scrypt dominates)
 python3 -m tools.audit_scope                            # client modules, views, buttons, cities vs data/scope_2018.json (--draft)
-python3 -m sahht_server.skill_spec data/skill_specs.json   # validate the skill specs
+python3 -m sahht_server.skill_spec data/skill_specs.json data/enemy_skill_specs.json   # validate the skill specs
+python3 -m tools.audit_enemy_skills                      # enemy skill ids vs specs
+python3 -m tools.simulate_campaign                        # 8384 fights with a sample team
 python3 -m sahht_server.app --port 8080                 # loopback only by default
 TMPDIR=$PWD/build/tmp python3 -m tools.patch_apk --url http://10.0.2.2:8080/pub_abroad_vr
 ```
@@ -167,8 +181,12 @@ Done and verified on the emulator:
 - Phase 0 (2026-11-23): out-of-scope buttons hidden, closed features answer "Tính năng chưa mở.", free recharge (coin bag, VIP level, monthly card refused with "Gói này chưa mở.").
 
 Not done (see also `server/README.md`):
-- Equipment, gems, pets and other gear; equipment rewards are not granted and tutorial team 2 (equipment) must be skipped.
-- Enemy skills (900xx), element damage, leader skills, 5-skill heroes' swap skills, gacha free draws.
+- Equipment covers enhance, sell, gacha, evolution, refining, splitting, tempering, enchanting, forging and fate binding, with suit bonuses in combat power (phase 2, progress in `docs/superpowers/specs/2026-11-24-phase-2-progress.md`). All their screens were verified on the emulator and views 25, 148, 131, 167, 182, 193 are open; tutorial team 2 has not been replayed. Item crafting, workshop, gems, pets and the rest of the gear are not done.
+- Phase 3 (combat) is implemented and tested in code: all 166 enemy skill ids, secondary stats in battle and combat power, the 5-skill swap, and 12 leader skills with the rage bar (progress in `docs/superpowers/specs/2026-11-25-phase-3-progress.md`). Emulator verification for the four sub-phases is still open.
+- Of the 96 leader-skill rows, the 83 passive nodes and the 15 skills whose effect script never shipped stay closed; `leader_skill.add_tree_point`/`wash_down`/`train_force` answer "Tính năng chưa mở.".
+- Gems (branch G1-G2) are implemented and tested in code (tables `gems`, `gem_positions`; `sahht_server/gems.py`, `gem_actions.py`; 22 tests in `tests/test_gems.py`), emulator verification is open. Fate gems (G3, `gem_fate.*`) and `gem.upgrade` are not served. Placed gems are never spent by synthesis, resolve or evolution.
+- Phase 4 (2026-11-25): done and seen on the emulator: campaign difficulty, the activity hall, resource war, elite stages; done in code and tests: daily/extreme/exp challenges, survival (progress in `docs/superpowers/specs/2026-11-25-phase-4-progress.md`). Not done: campaign auto-sweep, Vùng Đất Vô Chủ (`public_land`, hall row 150), Roger treasure (`search_treasure`); the towers stay closed (they need `open_door`, `god_field` or are dated events).
+- Gacha free draws; commander (phase 3 branch H) awaits project-owner approval.
 - The "Điểm thu hồi" achievement bar (`world_level`/`world_score`) stays at 0%; its source is unknown.
 - Everything outside phase 0 is closed through `data/scope_2018.json` (hidden or "Tính năng chưa mở.").
 - Client-side unknowns: `.sam` animation format, 56 double-encrypted Lua files, 5 LuaJIT bytecode files, `classes.dex` not decompiled.

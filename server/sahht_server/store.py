@@ -7,6 +7,7 @@ inside `transaction()`, so it either happens completely or not at all.
 
 import hashlib
 import hmac
+import json
 import re
 import secrets
 import sqlite3
@@ -104,10 +105,111 @@ CREATE TABLE IF NOT EXISTS payments (
 CREATE INDEX IF NOT EXISTS payments_player ON payments(player_id, charge_id);
 """
 
+_CARD_LOCK = """
+ALTER TABLE cards ADD COLUMN locked INTEGER NOT NULL DEFAULT 0;
+"""
+
+_EQUIPMENT = """
+CREATE TABLE IF NOT EXISTS equipment (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    player_id INTEGER NOT NULL REFERENCES players(id),
+    c_id      INTEGER NOT NULL,           -- equip.config key
+    lv        INTEGER NOT NULL DEFAULT 1,
+    st_lv     INTEGER NOT NULL DEFAULT 0  -- refine level
+);
+CREATE INDEX IF NOT EXISTS equipment_by_player ON equipment(player_id);
+CREATE TABLE IF NOT EXISTS equipment_positions (
+    player_id    INTEGER NOT NULL REFERENCES players(id),
+    position     INTEGER NOT NULL,         -- team position 0-9
+    slot         INTEGER NOT NULL,         -- equipment sort - 1: 0-3
+    equipment_id INTEGER NOT NULL UNIQUE REFERENCES equipment(id),
+    PRIMARY KEY (player_id, position, slot)
+);
+"""
+
+# Every feature that adds fields to an equipment document (refine, enchant, forge,
+# fate, and their pending rolls) keeps them together in one JSON column: they are always
+# read and written as a set, never queried by key, so a new feature needs no migration.
+_EQUIPMENT_EXTRA = """
+ALTER TABLE equipment ADD COLUMN extra TEXT NOT NULL DEFAULT '{}';
+"""
+
+# The three skill slots a 5-skill hero brings to a battle ("1_2_3"), as a fixed
+# three-of-five choice; `cards.set_battle_skill` rewrites it.
+_BATTLE_SKILLS = """
+CREATE TABLE IF NOT EXISTS battle_skill_slots (
+    card_id INTEGER PRIMARY KEY REFERENCES cards(id),
+    slots   TEXT NOT NULL
+);
+"""
+
+# Leader skills: the learned level of each (skill id -> level, JSON) and the three
+# equipped slots (`[id, id, id]`, 0 for empty).
+_LEADER_SKILLS = """
+CREATE TABLE IF NOT EXISTS leader_skills (
+    player_id INTEGER PRIMARY KEY REFERENCES players(id),
+    levels    TEXT NOT NULL DEFAULT '{}',
+    slots     TEXT NOT NULL DEFAULT '[0, 0, 0]'
+);
+"""
+
+# Gems are fungible stacks keyed by the client's gem key: "<gem.config id>" for a plain
+# gem, "<evolution level>-<gem.config id>" for an evolved one. `gem_positions` is the
+# per-position grid of keys (slot 0 attack gem, slots 1-3 defence gems).
+_GEMS = """
+CREATE TABLE IF NOT EXISTS gems (
+    player_id INTEGER NOT NULL REFERENCES players(id),
+    gem_key   TEXT NOT NULL,
+    count     INTEGER NOT NULL CHECK (count > 0),
+    PRIMARY KEY (player_id, gem_key)
+);
+CREATE TABLE IF NOT EXISTS gem_positions (
+    player_id INTEGER NOT NULL REFERENCES players(id),
+    position  INTEGER NOT NULL,
+    slot      INTEGER NOT NULL,
+    gem_key   TEXT NOT NULL,
+    PRIMARY KEY (player_id, position, slot)
+);
+"""
+
+# The unfinished run of an activity chapter (resource war, daily/extreme challenge, exp
+# stage): which stage and the 0-based steps already won, as a JSON list.
+_ACTIVE_RUNS = """
+CREATE TABLE IF NOT EXISTS active_runs (
+    player_id INTEGER NOT NULL REFERENCES players(id),
+    chapter   INTEGER NOT NULL,
+    active_id INTEGER NOT NULL,
+    steps     TEXT NOT NULL,
+    PRIMARY KEY (player_id, chapter)
+);
+"""
+
+# Elite stages: one attempt at a time. `elite_attempt` is the city and chapter being fought,
+# `elite_cleared` its buildings won so far (wiped when a new attempt starts), `elite_done` the
+# cities ever completed (they pay the repeat reward and show as recovered).
+_ELITE = """
+CREATE TABLE IF NOT EXISTS elite_attempt (
+    player_id INTEGER PRIMARY KEY REFERENCES players(id),
+    city      TEXT NOT NULL,
+    chapter   INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS elite_cleared (
+    player_id   INTEGER NOT NULL REFERENCES players(id),
+    building_id INTEGER NOT NULL,
+    PRIMARY KEY (player_id, building_id)
+);
+CREATE TABLE IF NOT EXISTS elite_done (
+    player_id INTEGER NOT NULL REFERENCES players(id),
+    city      TEXT NOT NULL,
+    PRIMARY KEY (player_id, city)
+);
+"""
+
 # Applied in order; PRAGMA user_version is how many are applied. Migration 1 is the
 # original schema (IF NOT EXISTS), so a database from before migrations is upgraded in
 # place. Never edit an applied migration: append a new one.
-MIGRATIONS = (_SCHEMA, _PAYMENTS)
+MIGRATIONS = (_SCHEMA, _PAYMENTS, _CARD_LOCK, _EQUIPMENT, _EQUIPMENT_EXTRA, _BATTLE_SKILLS,
+              _LEADER_SKILLS, _GEMS, _ACTIVE_RUNS, _ELITE)
 
 
 def _statements(script: str) -> list[str]:
@@ -121,6 +223,15 @@ def _hash_password(passwd: str, salt: bytes) -> bytes:
 
 def _pid(uid: str) -> int:
     return int(uid) - UID_OFFSET
+
+
+def _decode_extra(raw) -> dict:
+    """The JSON column as a dict; an unreadable value must not break the whole roster."""
+    try:
+        value = json.loads(raw or "{}")
+    except ValueError:
+        return {}
+    return value if isinstance(value, dict) else {}
 
 
 class Store:
@@ -225,6 +336,12 @@ class Store:
         return _player(self._one(
             "SELECT id, account, server, name, level FROM players WHERE account = ?", (account,)))
 
+    def players_overview(self) -> list[dict]:
+        """`{account, uid, level}` of every player, oldest first."""
+        return [{"account": r["account"], "uid": _player(r)["uid"], "level": r["level"]}
+                for r in self._all("SELECT id, account, server, name, level FROM players "
+                                   "ORDER BY id")]
+
     def player_for_uid(self, uid: str) -> dict | None:
         if not UID_RE.fullmatch(uid):
             return None
@@ -238,15 +355,60 @@ class Store:
     # ---- cards ---------------------------------------------------------------
 
     def cards_for_player(self, uid: str) -> list[dict]:
-        """Every card of the player with its skill progress: skills = {slot: (lv, exp)}."""
-        rows = self._all("SELECT id, c_id, lv, exp, step, slot FROM cards "
+        """Every card of the player with its skill progress: skills = {slot: (lv, exp)}.
+        `battle_slots` is the three skill slots the card brings to a battle."""
+        rows = self._all("SELECT id, c_id, lv, exp, step, slot, locked FROM cards "
                          "WHERE player_id = ? ORDER BY id", (_pid(uid),))
         skills = {}
         for s in self._all("SELECT s.card_id, s.slot, s.lv, s.exp FROM card_skills s "
                            "JOIN cards c ON c.id = s.card_id WHERE c.player_id = ?", (_pid(uid),)):
             skills.setdefault(s["card_id"], {})[s["slot"]] = (s["lv"], s["exp"])
-        return [dict(row) | {"id": str(row["id"]), "skills": skills.get(row["id"], {})}
+        battle = {b["card_id"]: [int(p) for p in b["slots"].split("_") if p]
+                  for b in self._all("SELECT b.card_id, b.slots FROM battle_skill_slots b "
+                                     "JOIN cards c ON c.id = b.card_id WHERE c.player_id = ?",
+                                     (_pid(uid),))}
+        return [dict(row) | {"id": str(row["id"]), "skills": skills.get(row["id"], {}),
+                             "battle_slots": battle.get(row["id"])}
                 for row in rows]
+
+    # ---- leader skills -------------------------------------------------------
+
+    def leader_skills(self, uid: str) -> tuple:
+        """(learned {skill id: level}, equipped [id, id, id])."""
+        row = self._one("SELECT levels, slots FROM leader_skills WHERE player_id = ?",
+                        (_pid(uid),))
+        if row is None:
+            return {}, [0, 0, 0]
+        try:
+            levels = {int(k): int(v) for k, v in json.loads(row["levels"]).items()}
+            slots = [int(s) for s in json.loads(row["slots"])]
+        except (ValueError, TypeError, AttributeError):
+            return {}, [0, 0, 0]
+        return levels, (slots if len(slots) == 3 else [0, 0, 0])
+
+    def set_leader_skill_level(self, uid: str, skill_id: int, level: int) -> None:
+        levels, slots = self.leader_skills(uid)
+        levels[int(skill_id)] = int(level)
+        self._write_leader_skills(uid, levels, slots)
+
+    def set_leader_skill_slots(self, uid: str, slots: list) -> None:
+        levels, _ = self.leader_skills(uid)
+        self._write_leader_skills(uid, levels, [int(s) for s in slots])
+
+    def _write_leader_skills(self, uid: str, levels: dict, slots: list) -> None:
+        with self.transaction():
+            self._db.execute(
+                "INSERT INTO leader_skills(player_id, levels, slots) VALUES (?, ?, ?) "
+                "ON CONFLICT(player_id) DO UPDATE SET levels = excluded.levels, "
+                "slots = excluded.slots",
+                (_pid(uid), json.dumps({str(k): v for k, v in levels.items()}),
+                 json.dumps(list(slots))))
+
+    def set_battle_skill_slots(self, card_id: str, slots: list) -> None:
+        with self.transaction():
+            self._db.execute("INSERT INTO battle_skill_slots(card_id, slots) VALUES (?, ?) "
+                             "ON CONFLICT(card_id) DO UPDATE SET slots = excluded.slots",
+                             (int(card_id), "_".join(str(s) for s in slots)))
 
     def card(self, uid: str, card_id: str) -> dict | None:
         """One card the player owns, or None (also for ids of other players)."""
@@ -276,6 +438,13 @@ class Store:
             self._db.execute("UPDATE cards SET lv = ?, exp = ?, step = ? "
                              "WHERE id = ? AND player_id = ?", (lv, exp, step, int(card_id), _pid(uid)))
 
+    def set_card_locked(self, uid: str, card_id: str, locked: bool) -> bool:
+        """Lock or unlock a card the player owns; False when it is not theirs."""
+        with self.transaction():
+            cur = self._db.execute("UPDATE cards SET locked = ? WHERE id = ? AND player_id = ?",
+                                   (1 if locked else 0, int(card_id), _pid(uid)))
+            return cur.rowcount == 1
+
     def set_card_skill(self, card_id: str, slot: int, lv: int, exp: int) -> None:
         with self.transaction():
             self._db.execute("INSERT INTO card_skills(card_id, slot, lv, exp) VALUES (?, ?, ?, ?) "
@@ -292,6 +461,7 @@ class Store:
                 return False
             for card_id in ids:
                 self._db.execute("DELETE FROM card_skills WHERE card_id = ?", (card_id,))
+                self._db.execute("DELETE FROM battle_skill_slots WHERE card_id = ?", (card_id,))
                 self._db.execute("DELETE FROM cards WHERE id = ?", (card_id,))
         return True
 
@@ -311,6 +481,140 @@ class Store:
                         self._db.execute("UPDATE cards SET slot = ? WHERE id = ?",
                                          (offset + pos, int(card_id)))
         return True
+
+    # ---- equipment -------------------------------------------------------------
+
+    def equipment_rows(self, uid: str) -> list[dict]:
+        """Every equipment instance of the player, with its string id and decoded `extra`."""
+        return [dict(row) | {"id": str(row["id"]), "extra": _decode_extra(row["extra"])}
+                for row in self._all(
+                    "SELECT id, c_id, lv, st_lv, extra FROM equipment "
+                    "WHERE player_id = ? ORDER BY id", (_pid(uid),))]
+
+    def equipment_row(self, uid: str, equip_id: str) -> dict | None:
+        return next((e for e in self.equipment_rows(uid) if e["id"] == str(equip_id)), None)
+
+    def equipment_count(self, uid: str) -> int:
+        return self._one("SELECT COUNT(*) FROM equipment WHERE player_id = ?",
+                         (_pid(uid),))[0]
+
+    def equipment_extra(self, uid: str, equip_id: str) -> dict | None:
+        """The feature fields of one piece, or None when it is not the player's."""
+        row = self._one("SELECT extra FROM equipment WHERE id = ? AND player_id = ?",
+                        (int(equip_id), _pid(uid)))
+        return None if row is None else _decode_extra(row["extra"])
+
+    def set_equipment_extra(self, uid: str, equip_id: str, extra: dict) -> bool:
+        with self.transaction():
+            cur = self._db.execute(
+                "UPDATE equipment SET extra = ? WHERE id = ? AND player_id = ?",
+                (json.dumps(extra, ensure_ascii=False, sort_keys=True), int(equip_id), _pid(uid)))
+            return cur.rowcount == 1
+
+    def add_equipment(self, uid: str, c_ids) -> list[str]:
+        """New level-1 equipment instances; returns their ids in order."""
+        ids = []
+        with self.transaction():
+            for c_id in c_ids:
+                cur = self._db.execute(
+                    "INSERT INTO equipment(player_id, c_id) VALUES (?, ?)",
+                    (_pid(uid), int(c_id)))
+                ids.append(str(cur.lastrowid))
+        return ids
+
+    def set_equipment_level(self, uid: str, equip_id: str, lv: int) -> bool:
+        with self.transaction():
+            cur = self._db.execute(
+                "UPDATE equipment SET lv = ? WHERE id = ? AND player_id = ?",
+                (lv, int(equip_id), _pid(uid)))
+            return cur.rowcount == 1
+
+    def set_equipment_st_level(self, uid: str, equip_id: str, st_lv: int) -> bool:
+        with self.transaction():
+            cur = self._db.execute(
+                "UPDATE equipment SET st_lv = ? WHERE id = ? AND player_id = ?",
+                (st_lv, int(equip_id), _pid(uid)))
+            return cur.rowcount == 1
+
+    def set_equipment_config(self, uid: str, equip_id: str, c_id: int) -> bool:
+        """Turn an instance into another equip config, keeping its id, level and place."""
+        with self.transaction():
+            cur = self._db.execute(
+                "UPDATE equipment SET c_id = ? WHERE id = ? AND player_id = ?",
+                (int(c_id), int(equip_id), _pid(uid)))
+            return cur.rowcount == 1
+
+    def equipment_positions(self, uid: str) -> list[tuple]:
+        """(position, slot, equipment id) for every equipped piece."""
+        return [(r["position"], r["slot"], str(r["equipment_id"])) for r in self._all(
+            "SELECT position, slot, equipment_id FROM equipment_positions "
+            "WHERE player_id = ?", (_pid(uid),))]
+
+    def set_equipment_positions(self, uid: str, placements) -> None:
+        """Replace the whole grid; `placements` is (position, slot, equipment id)."""
+        with self.transaction():
+            self._db.execute("DELETE FROM equipment_positions WHERE player_id = ?", (_pid(uid),))
+            self._db.executemany(
+                "INSERT INTO equipment_positions(player_id, position, slot, equipment_id) "
+                "VALUES (?, ?, ?, ?)",
+                [(_pid(uid), position, slot, int(equip_id))
+                 for position, slot, equip_id in placements])
+
+    def remove_equipment(self, uid: str, equip_ids) -> bool:
+        """Delete equipment the player owns; False if any id is not theirs."""
+        ids = [int(i) for i in equip_ids]
+        with self.transaction():
+            owned = self._all(
+                f"SELECT id FROM equipment WHERE player_id = ? AND id IN "
+                f"({','.join('?' * len(ids))})", (_pid(uid), *ids)) if ids else []
+            if len(owned) != len(set(ids)):
+                return False
+            for equip_id in ids:
+                self._db.execute("DELETE FROM equipment_positions WHERE equipment_id = ?",
+                                 (equip_id,))
+                self._db.execute("DELETE FROM equipment WHERE id = ?", (equip_id,))
+        return True
+
+    # ---- gems ------------------------------------------------------------------
+
+    def gems(self, uid: str) -> dict:
+        """gem key -> count, for every stack the player holds."""
+        return {r["gem_key"]: r["count"] for r in self._all(
+            "SELECT gem_key, count FROM gems WHERE player_id = ?", (_pid(uid),))}
+
+    def change_gems(self, uid: str, deltas: dict) -> bool:
+        """Add or consume gems by key; refuses (changing nothing) if a stack would go
+        negative. A stack that reaches zero is deleted."""
+        with self.transaction():
+            current = self.gems(uid)
+            if any(current.get(key, 0) + delta < 0 for key, delta in deltas.items()):
+                return False
+            for key, delta in deltas.items():
+                total = current.get(key, 0) + delta
+                if total:
+                    self._db.execute(
+                        "INSERT INTO gems(player_id, gem_key, count) VALUES (?, ?, ?) "
+                        "ON CONFLICT(player_id, gem_key) DO UPDATE SET count = excluded.count",
+                        (_pid(uid), str(key), total))
+                else:
+                    self._db.execute("DELETE FROM gems WHERE player_id = ? AND gem_key = ?",
+                                     (_pid(uid), str(key)))
+        return True
+
+    def gem_positions(self, uid: str) -> list[tuple]:
+        """(position, slot, gem key) for every placed gem."""
+        return [(r["position"], r["slot"], r["gem_key"]) for r in self._all(
+            "SELECT position, slot, gem_key FROM gem_positions WHERE player_id = ?",
+            (_pid(uid),))]
+
+    def set_gem_positions(self, uid: str, placements) -> None:
+        """Replace the whole grid; `placements` is (position, slot, gem key)."""
+        with self.transaction():
+            self._db.execute("DELETE FROM gem_positions WHERE player_id = ?", (_pid(uid),))
+            self._db.executemany(
+                "INSERT INTO gem_positions(player_id, position, slot, gem_key) "
+                "VALUES (?, ?, ?, ?)",
+                [(_pid(uid), position, slot, str(key)) for position, slot, key in placements])
 
     # ---- wallet and items ------------------------------------------------------
 
@@ -363,6 +667,65 @@ class Store:
                 "INSERT INTO counters(player_id, name, period, value) VALUES (?, ?, ?, ?) "
                 "ON CONFLICT(player_id, name) DO UPDATE SET period = excluded.period, value = excluded.value",
                 (_pid(uid), name, period, value))
+
+    # ---- elite attempts --------------------------------------------------------
+
+    def elite_attempt(self, uid: str):
+        """(city, chapter) of the attempt in progress, or None."""
+        row = self._one("SELECT city, chapter FROM elite_attempt WHERE player_id = ?", (_pid(uid),))
+        return (row["city"], row["chapter"]) if row else None
+
+    def start_elite_attempt(self, uid: str, city: str, chapter: int) -> None:
+        """Begin an attempt with nothing cleared, replacing any in progress."""
+        with self.transaction():
+            self._db.execute("DELETE FROM elite_cleared WHERE player_id = ?", (_pid(uid),))
+            self._db.execute(
+                "INSERT INTO elite_attempt(player_id, city, chapter) VALUES (?, ?, ?) "
+                "ON CONFLICT(player_id) DO UPDATE SET city = excluded.city, chapter = excluded.chapter",
+                (_pid(uid), city, chapter))
+
+    def end_elite_attempt(self, uid: str, completed_city: str = "") -> None:
+        """Drop the attempt; a completed one is remembered in `elite_done`."""
+        with self.transaction():
+            self._db.execute("DELETE FROM elite_attempt WHERE player_id = ?", (_pid(uid),))
+            self._db.execute("DELETE FROM elite_cleared WHERE player_id = ?", (_pid(uid),))
+            if completed_city:
+                self._db.execute("INSERT OR IGNORE INTO elite_done(player_id, city) VALUES (?, ?)",
+                                 (_pid(uid), completed_city))
+
+    def elite_cleared(self, uid: str) -> set[int]:
+        return {r["building_id"] for r in self._all(
+            "SELECT building_id FROM elite_cleared WHERE player_id = ?", (_pid(uid),))}
+
+    def mark_elite_cleared(self, uid: str, building_id: int) -> None:
+        with self.transaction():
+            self._db.execute("INSERT OR IGNORE INTO elite_cleared(player_id, building_id) "
+                             "VALUES (?, ?)", (_pid(uid), building_id))
+
+    def elite_done(self, uid: str) -> set[str]:
+        return {r["city"] for r in self._all(
+            "SELECT city FROM elite_done WHERE player_id = ?", (_pid(uid),))}
+
+    # ---- activity runs ---------------------------------------------------------
+
+    def active_run(self, uid: str, chapter: int):
+        """(stage id, steps won) of the chapter's unfinished run, or None."""
+        row = self._one("SELECT active_id, steps FROM active_runs "
+                        "WHERE player_id = ? AND chapter = ?", (_pid(uid), chapter))
+        return (row["active_id"], json.loads(row["steps"])) if row else None
+
+    def set_active_run(self, uid: str, chapter: int, active_id: int, steps: list) -> None:
+        with self.transaction():
+            self._db.execute(
+                "INSERT INTO active_runs(player_id, chapter, active_id, steps) VALUES (?, ?, ?, ?) "
+                "ON CONFLICT(player_id, chapter) DO UPDATE SET "
+                "active_id = excluded.active_id, steps = excluded.steps",
+                (_pid(uid), chapter, active_id, json.dumps(steps)))
+
+    def clear_active_run(self, uid: str, chapter: int) -> None:
+        with self.transaction():
+            self._db.execute("DELETE FROM active_runs WHERE player_id = ? AND chapter = ?",
+                             (_pid(uid), chapter))
 
     # ---- tutorial --------------------------------------------------------------
 

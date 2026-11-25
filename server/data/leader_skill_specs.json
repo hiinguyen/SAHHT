@@ -1,0 +1,78 @@
+{
+ "101": {
+  "aim": "enemy_all",
+  "effects": [
+   {"op": "damage", "target": "enemy_all", "type": "magic", "stat": "ally_max_matk", "scale": "effect1"},
+   {"op": "control", "target": "enemy_front", "kind": "silence", "rounds": 1}
+  ],
+  "note": "'Đóng băng kĩ năng 1 hiệp' đổi thành câm lặng mục tiêu đầu 1 hiệp"
+ },
+ "112": {
+  "aim": "enemy_all",
+  "effects": [
+   {"op": "damage", "target": "enemy_all", "type": "magic", "stat": "ally_max_matk", "scale": "effect1"}
+  ]
+ },
+ "132": {
+  "aim": "enemy_random",
+  "effects": [
+   {"op": "damage", "target": "enemy_random", "type": "magic", "stat": "enemy_max_matk", "scale": "effect1"}
+  ],
+  "note": "3 mục tiêu ngẫu nhiên; 'mỗi lần sát thương giảm 25%' bỏ qua, engine chọn ngẫu nhiên 3"
+ },
+ "201": {
+  "aim": "enemy_front",
+  "effects": [
+   {"op": "damage", "target": "enemy_front", "type": "magic", "stat": "enemy_max_matk", "scale": "effect1"}
+  ]
+ },
+ "212": {
+  "aim": "enemy_front",
+  "effects": [
+   {"op": "damage", "target": "enemy_front", "type": "magic", "stat": "ally_avg_matk", "scale": "effect1"}
+  ]
+ },
+ "232": {
+  "aim": "enemy_all",
+  "effects": [
+   {"op": "damage", "target": "enemy_all", "type": "magic", "stat": "ally_avg_matk", "scale": "effect1"}
+  ],
+  "note": "sát thương hệ Lửa không có script nguyên tố, dùng sát thương ma pháp"
+ },
+ "301": {
+  "aim": "enemy_front",
+  "effects": [
+   {"op": "damage", "target": "enemy_front", "type": "magic", "stat": "ally_max_matk", "scale": "effect1"}
+  ]
+ },
+ "312": {
+  "aim": "enemy_front",
+  "effects": [
+   {"op": "damage", "target": "enemy_front", "type": "magic", "stat": "ally_max_matk", "scale": "effect1"}
+  ]
+ },
+ "392": {
+  "aim": "enemy_all",
+  "effects": [
+   {"op": "damage", "target": "enemy_all", "type": "magic", "stat": "ally_max_matk", "scale": "effect1"}
+  ]
+ },
+ "401": {
+  "aim": "enemy_front",
+  "effects": [
+   {"op": "damage", "target": "enemy_front", "type": "phys", "stat": "ally_max_patk", "scale": "effect1"}
+  ]
+ },
+ "412": {
+  "aim": "enemy_front",
+  "effects": [
+   {"op": "damage", "target": "enemy_front", "type": "phys", "stat": "ally_max_patk", "scale": "effect1"}
+  ]
+ },
+ "433": {
+  "aim": "enemy_all",
+  "effects": [
+   {"op": "damage", "target": "enemy_all", "type": "phys", "stat": "ally_max_patk", "scale": "effect1"}
+  ]
+ }
+}

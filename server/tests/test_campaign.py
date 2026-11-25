@@ -7,10 +7,20 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 
-from sahht_server import campaign
+from sahht_server import campaign, config_overrides
 from sahht_server.battle import simulate
 from tests.test_flow import (BASE, FIXTURE_CONFIGS, ROOT, ServerCase, _building, _enemy,
                               _fight)
+
+
+class CharacterGateTests(unittest.TestCase):
+    def test_skin_heroes_lose_the_unimplemented_button(self):
+        """The 5-skill swap is implemented, so `skill_num` stays as the APK ships it."""
+        raw = {"1": {"skill_num": 5, "is_skin": 111, "name": "a"},
+               "2": {"skill_num": 3, "name": "b"}}
+        edited = config_overrides.apply("character_detail", raw, lambda name: {})
+        self.assertEqual(edited["1"], {"skill_num": 5, "is_skin": 0, "name": "a"})
+        self.assertEqual(edited["2"], {"skill_num": 3, "name": "b"})
 
 
 class CampaignCase(ServerCase):
@@ -23,6 +33,9 @@ class CampaignCase(ServerCase):
     def call(self, method, **params):
         _, body = self.api(f"private_city.{method}", self.rans, self.uid, **params)
         return body
+
+    def fight(self, building, step=0):
+        return self.call("recapture", city="100", building=str(building), step_n=str(step))
 
     def cells(self, land, building):
         return [cell for row in land for cell in row if cell[1] == building]
@@ -42,6 +55,45 @@ class WorldMapTests(CampaignCase):
         narrow = dataclasses.replace(svc, scope=dataclasses.replace(svc.scope, city_order_max=0))
         self.assertEqual(campaign._cities_in_order(svc), ["100"])
         self.assertEqual(campaign._cities_in_order(narrow), [])
+
+
+class WorldAchievementTests(CampaignCase):
+    def extra_configs(self):
+        return {"integration_world": {
+            "1": {"top": 1, "reward": [[15, 0, 50]]},
+            "2": {"top": 2, "reward": [[7, 10602, 1], [14, 0, 5]]},
+        }}
+
+    def test_score_is_one_point_per_cleared_building_and_tiers_are_claimed_in_order(self):
+        self.assertEqual(self.call("world_map")["data"]["world_score"], 0)
+        body = self.call("world_score")["data"]
+        self.assertEqual((body["world_score"], body["world_level"], body["world_reward_log"]),
+                         (0, 1, []))
+        self.fight(100001)
+        body = self.call("world_score")["data"]
+        self.assertEqual((body["world_score"], body["world_level"]), (1, 1))
+        self.assertEqual(self.call("open", city="100", chapter="1")["data"]["world_score"], 1)
+
+        claim = self.call("get_world_reward", level="1")["data"]
+        self.assertEqual(claim["reward"], {"silver": 50})
+        self.assertEqual(claim["world_reward_log"], [1])
+        self.assertEqual(claim["world_level"], 2)
+        self.assertEqual(self.call("get_world_reward", level="1")["status"], "error_level")
+        self.assertEqual(self.call("get_world_reward", level="2")["status"], "error_score")
+
+    def test_an_equipment_reward_becomes_an_equipment_instance(self):
+        self.fight(100001)
+        self.fight(100002, step=0)
+        self.fight(100002, step=1)
+        self.assertEqual(self.call("world_score")["data"]["world_score"], 2)
+        self.call("get_world_reward", level="1")
+        claim = self.call("get_world_reward", level="2")["data"]
+        self.assertEqual(claim["reward"]["star"], 5)
+        self.assertEqual(len(claim["reward"]["equip"]), 1)   # type 7 becomes equipment
+        self.assertIn(10602, {e["c_id"] for e in
+                             self.server.services.store.equipment_rows(self.uid)})
+        self.assertEqual(claim["world_reward_log"], [1, 2])
+        self.assertEqual(claim["world_level"], 2)         # capped at the last tier
 
 
 class CityTests(CampaignCase):
@@ -80,9 +132,6 @@ class CityTests(CampaignCase):
 
 
 class BattleTests(CampaignCase):
-    def fight(self, building, step=0):
-        return self.call("recapture", city="100", building=str(building), step_n=str(step))
-
     def test_winning_the_last_step_clears_the_building_and_unlocks_the_next(self):
         body = self.fight(100001)
         data = body["data"]

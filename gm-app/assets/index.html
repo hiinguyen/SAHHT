@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SAHHT GM</title>
+<style>
+  :root {
+    --bg: #0f131a; --panel: #171d28; --panel-2: #1f2634; --line: #2b3446;
+    --text: #e9edf5; --muted: #8b96ab; --accent: #f0b429; --accent-ink: #1b1403;
+    --ok: #4cc38a; --bad: #ef6b6b;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  body { display: flex; flex-direction: column; }
+  header { display: flex; align-items: center; gap: 10px; padding: 14px 16px 10px;
+    padding-top: max(14px, env(safe-area-inset-top)); }
+  header h1 { margin: 0; font-size: 20px; letter-spacing: .02em; flex: 1; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); }
+  .dot.on { background: var(--ok); } .dot.off { background: var(--bad); }
+  main { flex: 1; overflow-y: auto; padding: 0 16px 24px; }
+  section { display: none; } section.active { display: block; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted);
+    margin: 22px 0 8px; font-weight: 600; }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 4px; }
+  input, select { width: 100%; min-height: 48px; padding: 10px 12px; border-radius: 10px;
+    border: 1px solid var(--line); background: var(--panel); color: var(--text); font: inherit; }
+  input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  button { min-height: 48px; padding: 0 16px; border-radius: 10px; border: 1px solid var(--line);
+    background: var(--panel-2); color: var(--text); font: inherit; font-weight: 600; }
+  button:active { filter: brightness(1.2); }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent);
+    width: 100%; margin-top: 16px; }
+  button:disabled { opacity: .5; }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .row > * { min-width: 0; }
+  .grow { flex: 1; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    margin-bottom: 8px; overflow: hidden; }
+  .item { display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 14px;
+    border-top: 1px solid var(--line); }
+  .item:first-child { border-top: 0; }
+  .item .name { flex: 1; min-width: 0; }
+  .item .name b { display: block; font-weight: 600; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; }
+  .item .name small { color: var(--muted); }
+  .item button { min-height: 44px; min-width: 44px; padding: 0 10px; }
+  .qty { width: 76px; text-align: center; padding: 8px 4px; min-height: 44px; }
+  .group-title { padding: 10px 14px 6px; color: var(--accent); font-size: 13px; font-weight: 700; }
+  .empty { color: var(--muted); padding: 14px; text-align: center; }
+  .msg { margin-top: 14px; padding: 12px 14px; border-radius: 10px; background: var(--panel);
+    border: 1px solid var(--line); word-break: break-word; }
+  .msg.ok { border-color: var(--ok); } .msg.bad { border-color: var(--bad); }
+  .check { display: flex; gap: 10px; align-items: center; margin-top: 14px; color: var(--text);
+    font-size: 15px; }
+  .check input { width: 22px; min-height: 22px; height: 22px; }
+  nav { display: flex; border-top: 1px solid var(--line); background: var(--panel);
+    padding-bottom: env(safe-area-inset-bottom); }
+  nav button { flex: 1; border: 0; border-radius: 0; background: transparent; color: var(--muted);
+    min-height: 56px; font-size: 14px; }
+  nav button.active { color: var(--accent); }
+  .hint { color: var(--muted); font-size: 13px; margin: 6px 0 0; }
+  .kv { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; padding: 12px 14px; }
+  .kv span:nth-child(odd) { color: var(--muted); }
+</style>
+</head>
+<body>
+<header><h1>SAHHT GM</h1><span id="dot" class="dot" title="Kết nối"></span></header>
+<main>
+  <section id="tab-give" class="active">
+    <label for="account">Tài khoản nhận</label>
+    <div class="row">
+      <select id="account" class="grow"></select>
+      <button id="reload" aria-label="Tải lại">↻</button>
+    </div>
+    <label for="level">Đặt cấp người chơi (để trống nếu không đổi)</label>
+    <input id="level" type="number" inputmode="numeric" min="1" max="999" placeholder="vd 100">
+
+    <h2>Tìm vật phẩm, tướng, trang bị</h2>
+    <input id="q" type="search" placeholder="Tên, vd: Thẻ vàng, Tề Thiên" autocomplete="off">
+    <div id="results"></div>
+
+    <h2>Tiền tệ</h2>
+    <div class="row">
+      <select id="cur" class="grow"></select>
+      <input id="curn" class="qty" style="width:120px" type="number" inputmode="numeric" min="1" placeholder="Số lượng">
+      <button id="addcur">Thêm</button>
+    </div>
+
+    <h2>Giỏ cấp đồ</h2>
+    <div id="basket"></div>
+    <label class="check"><input id="late" type="checkbox"> Cho phép tướng sau 2018 (không có kĩ năng)</label>
+    <button id="give" class="primary">Cấp cho tài khoản</button>
+    <div id="giveMsg"></div>
+  </section>
+
+  <section id="tab-accounts">
+    <h2>Tài khoản</h2>
+    <div id="accounts"></div>
+    <h2>Tạo tài khoản GM</h2>
+    <label for="newName">Tên đăng nhập</label>
+    <input id="newName" autocapitalize="none" autocomplete="off">
+    <label for="newPass">Mật khẩu</label>
+    <input id="newPass" autocapitalize="none" autocomplete="off">
+    <label for="newLevel">Cấp</label>
+    <input id="newLevel" type="number" inputmode="numeric" value="120">
+    <button id="create" class="primary">Tạo / làm đầy ví</button>
+    <div id="createMsg"></div>
+  </section>
+
+  <section id="tab-connect">
+    <h2>Kết nối tới server</h2>
+    <label for="url">Địa chỉ server</label>
+    <input id="url" type="url" autocapitalize="none" autocomplete="off" placeholder="http://192.168.1.10:8080">
+    <label for="token">Token quản trị</label>
+    <input id="token" type="password" autocapitalize="none" autocomplete="off" placeholder="in bằng: python3 -m tools.admin token">
+    <button id="save" class="primary">Lưu và kiểm tra</button>
+    <div id="connMsg"></div>
+    <p class="hint">Điện thoại và máy chạy server phải cùng mạng. Chạy server bằng
+      <code>python3 -m sahht_server.app --host 0.0.0.0</code> để điện thoại vào được.
+      Trên emulator dùng <code>http://10.0.2.2:8080</code>.</p>
+  </section>
+</main>
+<nav>
+  <button data-tab="give" class="active">Cấp đồ</button>
+  <button data-tab="accounts">Tài khoản</button>
+  <button data-tab="connect">Kết nối</button>
+</nav>
+
+<script>
+"use strict";
+const PREFIX = "/pub_abroad_vr/admin/";
+const CURRENCIES = [["coin", "Xu"], ["silver", "Vàng"], ["food", "Lương thực"], ["metal", "Kim loại"],
+  ["star", "Sao"], ["energy", "Năng lượng"], ["crystal", "Tinh thể"], ["adv_crystal", "Tinh thể cao"],
+  ["grace", "Ân huệ"], ["arena_point", "Điểm đấu trường"], ["metalcore", "Lõi kim loại"],
+  ["refine_stone", "Đá tinh luyện"], ["enchant", "Phụ ma"]];
+const KINDS = { card: "Thẻ tướng", item: "Vật phẩm", equip: "Trang bị", gem: "Đá quý", cur: "Tiền tệ" };
+const $ = (id) => document.getElementById(id);
+
+const store = {
+  get(key, fallback = "") { try { return localStorage.getItem(key) ?? fallback; } catch (e) { return fallback; } },
+  set(key, value) { try { localStorage.setItem(key, value); } catch (e) { /* page still works */ } },
+};
+let basket = [];
+let searchTimer = 0;
+
+function h(tag, props = {}, ...children) {
+  const node = document.createElement(tag);
+  for (const [key, value] of Object.entries(props)) {
+    if (key === "class") node.className = value;
+    else if (key.startsWith("on")) node.addEventListener(key.slice(2), value);
+    else node.setAttribute(key, value);
+  }
+  node.append(...children);
+  return node;
+}
+
+async function api(method, params = {}) {
+  const base = store.get("url").trim().replace(/\/+$/, "");
+  if (!base) throw new Error("Chưa nhập địa chỉ server (tab Kết nối).");
+  const query = new URLSearchParams({ method, token: store.get("token"), ...params });
+  let response;
+  try {
+    response = await fetch(base + PREFIX + "?" + query);
+  } catch (e) {
+    setDot(false);
+    throw new Error("Không kết nối được server. Kiểm tra địa chỉ, cùng mạng Wi-Fi và server chạy với --host 0.0.0.0.");
+  }
+  const body = await response.json();
+  if (body.status !== 0) { setDot(body.status !== "error_token" && body.status !== "error_not_open"); throw new Error(body.msg || body.status); }
+  setDot(true);
+  return body.data;
+}
+
+function setDot(on) { $("dot").className = "dot " + (on ? "on" : "off"); }
+function say(id, text, good) { const box = $(id); box.replaceChildren(text ? h("div", { class: "msg " + (good ? "ok" : "bad") }, text) : ""); }
+
+// ---- tabs
+document.querySelectorAll("nav button").forEach((button) => button.addEventListener("click", () => {
+  document.querySelectorAll("nav button, section").forEach((n) => n.classList.remove("active"));
+  button.classList.add("active");
+  $("tab-" + button.dataset.tab).classList.add("active");
+  if (button.dataset.tab === "accounts") loadAccounts();
+}));
+
+// ---- accounts
+async function loadAccounts() {
+  try {
+    const list = await api("admin.accounts");
+    const picked = store.get("account");
+    $("account").replaceChildren(...list.map((a) => h("option", { value: a.account }, `${a.account}  (uid ${a.uid}, cấp ${a.level})`)));
+    if (list.some((a) => a.account === picked)) $("account").value = picked;
+    $("accounts").replaceChildren(list.length ? "" : h("div", { class: "empty" }, "Chưa có tài khoản."),
+      ...list.map((a) => accountCard(a)));
+  } catch (e) { $("accounts").replaceChildren(h("div", { class: "msg bad" }, e.message)); }
+}
+
+function accountCard(account) {
+  const detail = h("div");
+  return h("div", { class: "card" }, h("div", { class: "item" },
+    h("div", { class: "name" }, h("b", {}, account.account), h("small", {}, `uid ${account.uid} · cấp ${account.level}`)),
+    h("button", { onclick: async () => {
+      try {
+        const info = await api("admin.show", { account: account.account });
+        const rows = [["Thẻ tướng", info.cards], ["Loại vật phẩm", info.items],
+          ...Object.entries(info.wallet).map(([k, v]) => [k, v.toLocaleString("vi-VN")])];
+        detail.replaceChildren(h("div", { class: "kv" }, ...rows.flatMap(([k, v]) => [h("span", {}, k), h("span", {}, String(v))])));
+      } catch (e) { detail.replaceChildren(h("div", { class: "msg bad" }, e.message)); }
+    } }, "Xem")), detail);
+}
+
+$("create").addEventListener("click", async () => {
+  try {
+    const result = await api("admin.create", { account: $("newName").value.trim(), passwd: $("newPass").value, level: $("newLevel").value });
+    say("createMsg", `${result.created ? "Đã tạo" : "Đã cập nhật"} tài khoản (uid ${result.uid}, cấp ${result.level}). Đăng nhập trong game bằng tài khoản này.`, true);
+    loadAccounts();
+  } catch (e) { say("createMsg", e.message, false); }
+});
+
+// ---- search
+$("q").addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(runSearch, 350); });
+
+async function runSearch() {
+  const text = $("q").value.trim();
+  if (!text) { $("results").replaceChildren(); return; }
+  try {
+    const groups = await api("admin.search", { q: text });
+    $("results").replaceChildren(groups.length ? "" : h("div", { class: "empty" }, "Không thấy kết quả."),
+      ...groups.map((g) => h("div", { class: "card" }, h("div", { class: "group-title" }, g.label),
+        ...g.rows.map((row) => h("div", { class: "item" },
+          h("div", { class: "name" }, h("b", {}, row.name), h("small", {}, "mã " + row.id)),
+          h("button", { onclick: () => addToBasket(g.kind, row.id, row.name) }, "+"))),
+        g.more ? h("div", { class: "empty" }, `còn ${g.more} kết quả, gõ rõ hơn`) : "")));
+  } catch (e) { $("results").replaceChildren(h("div", { class: "msg bad" }, e.message)); }
+}
+
+// ---- basket
+function addToBasket(kind, id, name, count = 1) {
+  const found = basket.find((e) => e.kind === kind && e.id === id);
+  if (found) found.count += count; else basket.push({ kind, id, name, count });
+  renderBasket();
+}
+
+function renderBasket() {
+  if (!basket.length) { $("basket").replaceChildren(h("div", { class: "empty" }, "Chưa chọn gì. Tìm và bấm + để thêm.")); return; }
+  $("basket").replaceChildren(h("div", { class: "card" }, ...basket.map((entry) => h("div", { class: "item" },
+    h("div", { class: "name" }, h("b", {}, entry.name), h("small", {}, `${KINDS[entry.kind]} · ${entry.id}`)),
+    h("button", { onclick: () => { entry.count = Math.max(1, entry.count - 1); renderBasket(); } }, "−"),
+    h("input", { class: "qty", type: "number", inputmode: "numeric", min: "1", value: String(entry.count),
+      onchange: (e) => { entry.count = Math.max(1, parseInt(e.target.value, 10) || 1); renderBasket(); } }),
+    h("button", { onclick: () => { entry.count += 1; renderBasket(); } }, "+"),
+    h("button", { "aria-label": "Xóa", onclick: () => { basket = basket.filter((e) => e !== entry); renderBasket(); } }, "✕")))));
+}
+
+$("cur").replaceChildren(...CURRENCIES.map(([id, name]) => h("option", { value: id }, `${name} (${id})`)));
+$("addcur").addEventListener("click", () => {
+  const amount = parseInt($("curn").value, 10);
+  if (!amount || amount < 1) return;
+  const id = $("cur").value;
+  addToBasket("cur", id, CURRENCIES.find((c) => c[0] === id)[1], amount);
+  $("curn").value = "";
+});
+
+$("give").addEventListener("click", async () => {
+  const account = $("account").value;
+  if (!account) { say("giveMsg", "Chọn tài khoản nhận.", false); return; }
+  const params = { account, late: $("late").checked ? "1" : "0" };
+  for (const entry of basket) {
+    const piece = entry.kind === "cur" ? `${entry.id}=${entry.count}` : `${entry.id}:${entry.count}`;
+    params[entry.kind] = params[entry.kind] ? params[entry.kind] + "," + piece : piece;
+  }
+  if ($("level").value) params.level = $("level").value;
+  if (!basket.length && !params.level) { say("giveMsg", "Giỏ đang trống.", false); return; }
+  $("give").disabled = true;
+  try {
+    const result = await api("admin.give", params);
+    store.set("account", account);
+    say("giveMsg", `Đã cấp cho ${account}: ${result.summary}. Khởi động lại game để thấy thay đổi.`, true);
+    basket = []; renderBasket();
+  } catch (e) { say("giveMsg", e.message, false); }
+  $("give").disabled = false;
+});
+
+$("reload").addEventListener("click", loadAccounts);
+
+// ---- connection
+$("url").value = store.get("url");
+$("token").value = store.get("token");
+$("save").addEventListener("click", async () => {
+  store.set("url", $("url").value.trim());
+  store.set("token", $("token").value.trim());
+  try {
+    await api("admin.ping");
+    say("connMsg", "Kết nối thành công.", true);
+    loadAccounts();
+  } catch (e) { say("connMsg", e.message, false); }
+});
+
+renderBasket();
+if (store.get("url") && store.get("token")) { api("admin.ping").then(loadAccounts).catch(() => {}); }
+else { document.querySelector('nav button[data-tab="connect"]').click(); }
+</script>
+</body>
+</html>

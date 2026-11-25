@@ -51,6 +51,134 @@ FIXTURE_CONFIGS = {
     "achieve": {"1": {"a": 1}},
     "badge": {"2": {"b": 2}},
     "character_detail": {str(c_id): _character(c_id) for c_id in (5300, 100, 200, 3800)},
+    # Four equipment slots (sort 1-4) and a small enhance table (metal per level).
+    "equip": {
+        "10101": {"name": "weapon", "sort": 1, "quality": 1, "ability1": 1, "ability2": 5,
+                  "value1": 100, "value2": 200, "level_add1": 10, "level_add2": 20,
+                  "suit": 0, "is_resolve": 1, "sell_metal": 100, "refine_id": 1,
+                  "exchange_id": 1, "evolution": 10102, "evolution_id": 10101},
+        "10102": {"name": "weapon+", "sort": 1, "quality": 2, "ability1": 1, "ability2": 5,
+                  "value1": 150, "value2": 300, "level_add1": 15, "level_add2": 30,
+                  "suit": 0, "is_resolve": 1, "sell_metal": 200, "exchange_id": 2,
+                  "evolution": 0},
+        "20101": {"name": "armor", "sort": 2, "quality": 1, "ability1": 3, "ability2": 5,
+                  "value1": 50, "value2": 100, "level_add1": 5, "level_add2": 10,
+                  "suit": 0, "is_resolve": 1, "sell_metal": 100, "refine_id": 1,
+                  "exchange_id": 1},
+        "30101": {"name": "boots", "sort": 3, "quality": 1, "ability1": 4, "ability2": 5,
+                  "value1": 20, "value2": 50, "level_add1": 2, "level_add2": 5,
+                  "suit": 0, "is_resolve": 1, "sell_metal": 100, "exchange_id": 1},
+        "40101": {"name": "ring", "sort": 4, "quality": 1, "ability1": 2, "ability2": 5,
+                  "value1": 30, "value2": 60, "level_add1": 3, "level_add2": 6,
+                  "suit": 0, "is_resolve": 1, "sell_metal": 100, "exchange_id": 1},
+        # A full suit: same `equip_id` family per slot as suit 900's parts.
+        "11101": {"name": "set weapon", "sort": 1, "quality": 1, "ability1": 1, "ability2": 5,
+                  "value1": 10, "value2": 20, "level_add1": 1, "level_add2": 2,
+                  "suit": 900, "equip_id": 1, "is_resolve": 1, "sell_metal": 10,
+                  "exchange_id": 1},
+        "21101": {"name": "set armor", "sort": 2, "quality": 1, "ability1": 3, "ability2": 5,
+                  "value1": 10, "value2": 20, "level_add1": 1, "level_add2": 2,
+                  "suit": 900, "equip_id": 2, "is_resolve": 1, "sell_metal": 10,
+                  "exchange_id": 1},
+        "31101": {"name": "set boots", "sort": 3, "quality": 1, "ability1": 4, "ability2": 5,
+                  "value1": 10, "value2": 20, "level_add1": 1, "level_add2": 2,
+                  "suit": 900, "equip_id": 3, "is_resolve": 1, "sell_metal": 10,
+                  "exchange_id": 1},
+        "41101": {"name": "set ring", "sort": 4, "quality": 1, "ability1": 2, "ability2": 5,
+                  "value1": 10, "value2": 20, "level_add1": 1, "level_add2": 2,
+                  "suit": 900, "equip_id": 4, "is_resolve": 1, "sell_metal": 10,
+                  "exchange_id": 1},
+    },
+    # Two-piece and four-piece effects; part configs match by `equip_id` per sort.
+    "suit": {"900": {"name": "set", "part": [11101, 21101, 31101, 41101],
+                     "effect_2": [[1, 100], [2, 75]], "effect_3": [[3, 50], [4, 150]],
+                     "effect_4": [[1, 100], [2, 75], [5, 1000]]}},
+    "equip_exchange": {
+        "1": {"metal": [[500, 700, 100]], "metalcore": [[2, 4, 100]], "item": []},
+        "2": {"metal": [[800, 900, 100]], "metalcore": [[5, 6, 100]], "item": []},
+    },
+    # Tempering: per roll costs, three bands and the clamp range.
+    "equip_refine": {
+        "1": {"refine_ability": [1, 5], "refine_control_1": [-100, 40],
+              "refine_control_2": [-100, 30],
+              "refine_min_1": [[1, 5, 100]], "refine_min_2": [[2, 4, 100]],
+              "refine_mid_1": [[2, 6, 100]], "refine_mid_2": [[1, 3, 100]],
+              "refine_max_1": [[3, 9, 100]], "refine_max_2": [[2, 8, 100]],
+              "refine_min_cost": [[23, 0, 3]],
+              "refine_mid_cost": [[23, 0, 2], [2, 0, 600]],
+              "refine_max_cost": [[23, 0, 1], [9, 0, 5]],
+              "extra_break_1": 1300, "extra_break_2": 1000},
+    },
+    "enchant": {"1": {"piece": 80, "atk_max": 3000, "def_max": 3000,
+                      "atk_rate": [10, 150], "def_rate": [10, 150]}},
+    "fast_material_cost": {"5": {"cost": 1, "material_1": [[21, 0, 1]], "material_2": 0,
+                                 "sort": 1}},
+    "equip_set_level": {
+        str(lv): {"add1": 24 * lv, "add2": 80 * lv, "add3": 232 * lv, "add4": 670 * lv,
+                  "need": 4000 * lv} for lv in range(1, 11)},
+    "equip_set_cost": {
+        "1": {"cost": [[33, 0, 10], [2, 0, 2000]]},
+        "2": {"cost": [[34, 0, 10], [2, 0, 5000]]},
+        "3": {"cost": [[35, 0, 10], [2, 0, 10000]]},
+    },
+    "equip_set_rate": {str(n): {"rate_num": rate} for n, rate in enumerate(
+        (1, 0.9, 0.6, 0.9, 6, 0.013, 0.0068, 0.0037, 0.0019), start=1)},
+    # Forge properties: two flat stats and one percentage stat, all for sorts 1-4.
+    "equip_set_random": {
+        "1": {"ability": 300, "sort": 1, "quality": 1, "weight": 60,
+              "equip_sort": [1, 2, 3, 4], "enemy": []},
+        "2": {"ability": 200, "sort": 2, "quality": 1, "weight": 60,
+              "equip_sort": [1, 2, 3, 4], "enemy": []},
+        "3": {"ability": 100, "sort": 3, "quality": 1, "weight": 60,
+              "equip_sort": [1, 2, 3, 4], "enemy": []},
+        "4": {"ability": 50, "sort": 4, "quality": 1, "weight": 0,
+              "equip_sort": [1, 2, 3, 4], "enemy": []},
+        "5": {"ability": 0.1, "sort": 6, "quality": 1, "weight": 0,
+              "equip_sort": [1, 2, 3, 4], "enemy": []},
+    },
+    # Fate rows for quality 1: values are percent after the x100 conversion.
+    "equip_fate": {
+        "1": {"id": 1, "equip_quality": 1, "refresh_range1": 10, "refresh_range2": 5,
+              "refresh": [5, 5, 5], "cost": 10,
+              "refresh_equip_min_fate1": [[0.01, 0.05, 100]],
+              "refresh_equip_mid_fate1": [[0.02, 0.06, 100]],
+              "refresh_equip_max_fate1": [[0.03, 0.09, 100]],
+              "refresh_equip_min_fate2": [[0.01, 0.04, 100]],
+              "refresh_equip_mid_fate2": [[0.02, 0.05, 100]],
+              "refresh_equip_max_fate2": [[0.03, 0.08, 100]],
+              "refresh_equip_fate_range": [[-0.02, 0.09], [-0.02, 0.2], [0, 0.7]]},
+        "2": {"id": 2, "equip_quality": 1, "refresh_range1": 20, "refresh_range2": 10,
+              "refresh": [5, 5, 5], "cost": 10,
+              "refresh_equip_min_fate1": [[0.05, 0.09, 100]],
+              "refresh_equip_mid_fate1": [[0.06, 0.1, 100]],
+              "refresh_equip_max_fate1": [[0.07, 0.2, 100]],
+              "refresh_equip_min_fate2": [[0.04, 0.08, 100]],
+              "refresh_equip_mid_fate2": [[0.05, 0.09, 100]],
+              "refresh_equip_max_fate2": [[0.06, 0.1, 100]],
+              "refresh_equip_fate_range": [[-0.02, 0.1], [-0.05, 0.1], [0, 0.7]]},
+    },
+    # Evolving 10101 takes a spare 10101, 20 of item 100001 and 1000 metal.
+    "equip_evolution": {
+        "10101": {"equip_material_1": [[7, 10101, 1]], "equip_material_2": [[6, 100001, 20]],
+                  "equip_material_3": [], "metal": 1000},
+    },
+    "equip_strongthen": {
+        str(lv): {"metal": 100 * lv, **{f"quality{q}": 100 for q in range(9)}}
+        for lv in range(1, 11)
+    },
+    # Refine table: the cost and rate come from the row of the next level, the fall-back
+    # level from the row of the current one (rows 8-10 fall back to 7, as the real config).
+    "equip_st": {
+        str(n): {"metal": 1000, "metalcore": 10 * n, "rate": rate, "false_back": min(n, 7),
+                 "patk": [6, n], "matk": [7, n], "def": [8, n], "speed": [9, n]}
+        for n, rate in enumerate((100, 100, 100, 70, 70, 70, 70, 50, 20, 10), start=1)
+    },
+    "equip_gacha": {
+        "1": {"consume_sort": 2, "value": 75, "get_num": 1, "gacha_sort": 0, "gacha_num": 0,
+              "gacha_team": 20, "use_gacha": [], "use_level": [1, 300],
+              "good_point": 0, "add_point": 8,
+              "good_item": [[7, 10101, 1, 100]], "bad_item": []},
+    },
     "cityid_cityorderid": {"100": "1"},
     "map_title_detail": {
         "100001": {**_building([100001]), "reward_first_base": [[1, 0, 100], [6, 1018, 1]],
@@ -70,7 +198,8 @@ FIXTURE_CONFIGS = {
     # Player levels: exp to leave a level, stamina restored on reaching it.
     "role": {str(lv): {"exp": 10 * lv, "recover_point": 5} for lv in range(1, 6)},
     "role_detail": {"1": {"item": [[1018, 2], [27, 1]]}},
-    "item": {"1018": {"name": "shard", "stack": 9999, "is_use": 0},
+    "item": {"100001": {"name": "evolution stone", "stack": 9999, "is_use": 0},
+             "1018": {"name": "shard", "stack": 9999, "is_use": 0},
              "27": {"name": "stamina", "stack": 9999, "is_use": 2, "use_effect": [5]},
              "100": {"name": "coin box", "stack": 9999, "is_use": 1, "use_effect": [7]}},
     "character_base": {str(lv): {"exp": 20 * lv, "sell_food": 100, "eaten_skill_exp": 50,
@@ -342,7 +471,9 @@ class GameApiTests(ServerCase):
         self.assertEqual(bench, ["-1", "-1", "-1"])
         # The starting bag is role_detail's item list, as id -> stack counts.
         self.assertEqual(data["items"], {"1018": [2], "27": [1]})
-        self.assertEqual(data["equip"], {})
+        [equip] = data["equip"].values()
+        self.assertEqual((equip["c_id"], equip["lv"], equip["st_lv"]), (10101, 1, 0))
+        self.assertEqual(data["equip_pos"]["0"], ["0", "0", "0", "0"])
 
     def test_starter_card_carries_every_field_read_unguarded(self):
         _, body = self.api("cards.open", self.rans, self.uid)

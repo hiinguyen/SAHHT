@@ -64,7 +64,10 @@ CONDITIONS = {
     "target_boss": None,
     "target_not_boss": None,
     "target_race": re.compile(r"^[0-5]$"),
+    "target_not_race": re.compile(r"^[0-5]$"),
     "enemy_has_race": re.compile(r"^[0-5]$"),
+    "ally_has_race": re.compile(r"^[0-5]$"),
+    "ally_lacks_race": re.compile(r"^[0-5]$"),
     "target_hp_below": re.compile(r"^\d+$"),
     "target_hp_above": re.compile(r"^\d+$"),
     "self_hp_below": re.compile(r"^\d+$"),
@@ -80,7 +83,8 @@ CONDITIONS = {
 
 _COMMON = {"op", "target", "chance", "if", "count"}
 OPS = {
-    "damage": {"type", "scale", "stat", "ignore_def", "hits", "bonus", "crit"},
+    "damage": {"type", "scale", "stat", "ignore_def", "hits", "bonus", "crit",
+               "sure_hit", "crit_bonus"},
     "attr_damage": {"element", "scale"},
     "heal": {"scale", "of"},
     "buff": {"stat", "value", "rounds", "max_stack"},
@@ -121,11 +125,16 @@ SPEC_KEYS = {"trigger", "aim", "count", "limit_per_round", "once", "rounds",
 
 
 VALUE_WORDS = ("effect", "attr", "-effect", "-attr")
+# A number, or one of the words above; `effect100` / `attr100` are the same value
+# divided by 100 (tables whose effect is written in basis points), and an optional
+# `+n` / `-n` adds to it ("effect+20").
+VALUE_RE = re.compile(r"^-?(effect|attr)(100)?([+-]\d+(?:\.\d+)?)?$")
 
 
 def is_value(v) -> bool:
-    """A number, or 'effect' / 'attr' / '-effect' / '-attr' (resolved from skill_detail at run time)."""
-    return v in VALUE_WORDS or (isinstance(v, (int, float)) and not isinstance(v, bool))
+    """A number, or 'effect' / 'attr' / 'effect100' / 'attr100' with an optional offset."""
+    return ((isinstance(v, str) and VALUE_RE.match(v) is not None)
+            or (isinstance(v, (int, float)) and not isinstance(v, bool)))
 
 
 def _positive_int(v) -> bool:
@@ -165,9 +174,11 @@ def _check_fields(e, op, where, errors):
     for key in REQUIRED.get(op, ()):
         if key not in e:
             errors.append(f"{where}: {op} needs {key}")
-    for key in ("scale", "value", "ignore_def", "below", "chance"):
+    for key in ("scale", "value", "ignore_def", "below", "chance", "crit_bonus"):
         if key in e and not is_value(e[key]):
             errors.append(f"{where}: {key} must be a number, 'effect' or 'attr'")
+    if "sure_hit" in e and not isinstance(e["sure_hit"], bool):
+        errors.append(f"{where}: sure_hit must be a bool")
     for key in ("rounds", "hits", "max_stack", "times"):
         if key in e and not (isinstance(e[key], int) and not isinstance(e[key], bool)
                              and e[key] >= 0):

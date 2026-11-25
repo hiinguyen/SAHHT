@@ -10,20 +10,27 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
-from . import campaign, cards, config_overrides, gacha, handlers, payment, shop
+from . import (active, campaign, cards, config_overrides, elite, equip_gacha, equipment_actions,
+               equipment_enchant, equipment_fate, equipment_forge, equipment_refine,
+               equipment_split, gacha, gem_actions, gm_api, handlers, leader_skills, payment, shop)
 from . import scope as scope_module
 from .player import user_status
 from .handlers import ConfigCache, Request, Services
 from .scope import Scope
 from .store import Store
 
-SESSION_HANDLERS = {**handlers.SESSION_HANDLERS, **campaign.HANDLERS, **cards.HANDLERS,
-                    **gacha.HANDLERS, **shop.HANDLERS, **payment.HANDLERS}
-SERVICES = {"login", "api", "config", "pay", "dataosha", "lua_ver"}
+SESSION_HANDLERS = {**handlers.SESSION_HANDLERS, **active.HANDLERS, **campaign.HANDLERS,
+                    **elite.HANDLERS, **cards.HANDLERS,
+                    **equip_gacha.HANDLERS, **equipment_actions.HANDLERS,
+                    **equipment_enchant.HANDLERS, **equipment_fate.HANDLERS,
+                    **equipment_forge.HANDLERS, **equipment_refine.HANDLERS,
+                    **equipment_split.HANDLERS, **gacha.HANDLERS, **gem_actions.HANDLERS,
+                    **leader_skills.HANDLERS, **shop.HANDLERS, **payment.HANDLERS}
+SERVICES = {"login", "api", "config", "pay", "dataosha", "lua_ver", "admin"}
 SESSION_SERVICES = {"api", "pay", "dataosha"}
 QUIET_SERVICES = {"dataosha"}   # the client's own analytics: answered, never shown
 CLOSED_MSG = "Tính năng chưa mở."
-REDACTED_PARAMS = {"passwd", "rans"}
+REDACTED_PARAMS = {"passwd", "rans", "token"}
 HOST_RE = re.compile(r"^[A-Za-z0-9.\-]+(:\d{1,5})?$")
 VERSION_RE = re.compile(r"^[A-Za-z0-9._\-]+$")
 NOT_FOUND = {"error": {"code": "NOT_FOUND", "message": "Không tìm thấy đối tượng."}}
@@ -52,6 +59,7 @@ class RequestLog:
 
 class GameHandler(BaseHTTPRequestHandler):
     server_version = "sahht"
+    cors = False   # set for `admin` calls: the phone app's page is a local file
 
     def log_message(self, *_):
         pass  # the JSONL request log replaces the default access log
@@ -68,6 +76,7 @@ class GameHandler(BaseHTTPRequestHandler):
         self._handle(self.rfile.read(int(length)))
 
     def _handle(self, form: bytes):
+        self.cors = False
         try:
             status, body = self._route(form)
         except Exception as exc:  # a handler bug must not kill the connection thread
@@ -83,6 +92,8 @@ class GameHandler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(payload)))
+        if self.cors:
+            self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
         self.wfile.write(payload)
 
@@ -104,6 +115,11 @@ class GameHandler(BaseHTTPRequestHandler):
         prefix = "".join(f"/{p}" for p in parts[:index])
         req = Request(service, method, params, f"http://{host}{prefix}", host.split(":")[0], lists)
         svc = self.server.services
+
+        if service == "admin":
+            self.cors = True
+            self.server.request_log.write(service, method, params)
+            return 200, gm_api.handle(req, svc, self.server.admin_token)
 
         if service == "lua_ver":
             version = parts[-1].removesuffix(".json")
@@ -185,7 +201,8 @@ class GameServer(ThreadingHTTPServer):
         self.services.store.close()
 
 
-def build_server(host, port, db_path, config_dir, version_map_path, request_log, scope_path=None):
+def build_server(host, port, db_path, config_dir, version_map_path, request_log, scope_path=None,
+                 admin_token=None):
     configs = ConfigCache(config_dir)
     apk_versions = json.loads(Path(version_map_path).read_text(encoding="utf-8"))
     version_map = config_overrides.version_map(apk_versions, configs)
@@ -201,6 +218,7 @@ def build_server(host, port, db_path, config_dir, version_map_path, request_log,
         scope=scope,
     )
     server.request_log = RequestLog(request_log)
+    server.admin_token = admin_token   # None: the admin service is off
     try:
         server.server_bind()
         server.server_activate()
@@ -220,11 +238,16 @@ def main():
     ap.add_argument("--version-map", default=str(root / "data" / "game_config_version.json"))
     ap.add_argument("--request-log", default=str(root / "data" / "requests.jsonl"))
     ap.add_argument("--scope", default=str(root / "data" / "scope_2018.json"))
+    ap.add_argument("--admin-token-file", default=str(root / "data" / "admin_token"),
+                    help="secret of the phone game-master app; the admin service is off "
+                         "when the file does not exist (make it: python3 -m tools.admin token)")
     args = ap.parse_args()
 
+    token_file = Path(args.admin_token_file)
+    token = token_file.read_text(encoding="utf-8").strip() if token_file.is_file() else None
     try:
         server = build_server(args.host, args.port, args.db, args.config_dir,
-                              args.version_map, args.request_log, args.scope)
+                              args.version_map, args.request_log, args.scope, token or None)
     except OSError as exc:
         if exc.errno != errno.EADDRINUSE:
             raise

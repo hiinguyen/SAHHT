@@ -42,6 +42,8 @@ class MigrationTests(unittest.TestCase):
         self.open_store().create_account("old_player", "secret12")
         db = sqlite3.connect(self.path)
         db.execute("DROP TABLE payments")
+        db.execute("ALTER TABLE cards DROP COLUMN locked")   # schema before migration 3
+        db.execute("ALTER TABLE equipment DROP COLUMN extra")  # before migration 5
         db.execute("PRAGMA user_version = 0")
         db.commit()
         db.close()
@@ -56,6 +58,24 @@ class MigrationTests(unittest.TestCase):
         db.close()
         with self.assertRaises(RuntimeError):
             Store(self.path)
+
+    def test_battle_skill_choice_survives_a_reopen(self):
+        store = Store(self.path)
+        store.create_account("swap_player", "secret12")
+        uid = store.player_for_account("swap_player")["uid"]
+        card = store.add_cards(uid, [100])[0]
+        store.set_battle_skill_slots(card, [2, 3, 4])
+        store.close()
+        reopened = Store(self.path)
+        self.addCleanup(reopened.close)
+        self.assertEqual(reopened.cards_for_player(uid)[0]["battle_slots"], [2, 3, 4])
+
+    def test_a_new_card_has_no_saved_battle_skill_choice(self):
+        store = self.open_store()
+        store.create_account("plain_player", "secret12")
+        uid = store.player_for_account("plain_player")["uid"]
+        store.add_cards(uid, [100])
+        self.assertIsNone(store.cards_for_player(uid)[0]["battle_slots"])
 
 
 class PaymentStoreTests(unittest.TestCase):

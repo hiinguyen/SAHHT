@@ -19,6 +19,7 @@ import random
 from dataclasses import dataclass, field
 
 from .battle_unit import Buff, Dot, Unit
+from .leader_skill import RAGE_MAX
 
 MAX_ROUNDS = 30          # the battle scene shows "round n/30"
 WIN, LOSS = 1, 10        # the client treats winer < 5 as a win
@@ -94,7 +95,7 @@ class Cast:
 
 
 class Battle:
-    def __init__(self, units, rng=None, script=None, layouts=None):
+    def __init__(self, units, rng=None, script=None, layouts=None, leaders=()):
         self.units = units
         self.rng = rng or random.Random()
         self.script = script or (lambda unit, skill, slot: "skill1")
@@ -102,6 +103,10 @@ class Battle:
         self.layouts = layouts or (default, default)
         self.frames = []
         self.round = 1
+        # Leader skills of the attacker side (the player); rage is 0..100.
+        self.leaders = list(leaders)
+        self.rage = 0
+        self.leader_ready = {skill.id: skill.ready_time + 1 for skill in self.leaders}
 
     def run(self):
         self._apply_passives()
@@ -111,7 +116,11 @@ class Battle:
                 break
             order = self._acting_order()
             self.emit("sort", [u.pos for u in order])
+            if self.leaders:
+                self.emit("anger", {"src": 0, "value": self.rage})
             self._round_start()
+            if not self._over():
+                self._leader_cast()
             for unit in order:
                 if self._over():
                     break
@@ -218,8 +227,13 @@ class Battle:
             "target_boss": lambda: has_target() and unit.boss,
             "target_not_boss": lambda: not has_target() or not unit.boss,
             "target_race": lambda: has_target() and unit.race == int(arg),
+            "target_not_race": lambda: not has_target() or unit.race != int(arg),
             "enemy_has_race": lambda: any(u.race == int(arg)
                                           for u in self._alive(not caster.attacker_side)),
+            "ally_has_race": lambda: any(u.race == int(arg)
+                                         for u in self._alive(caster.attacker_side)),
+            "ally_lacks_race": lambda: not any(u.race == int(arg)
+                                               for u in self._alive(caster.attacker_side)),
             "target_hp_below": lambda: has_target() and unit.hp_pct < float(arg),
             "target_hp_above": lambda: has_target() and unit.hp_pct > float(arg),
             "self_hp_below": lambda: caster.hp_pct < float(arg),
@@ -287,10 +301,91 @@ class Battle:
                 self.emit("remove_buff", {"src": unit.pos, "name": buff_art(buff.stat, buff.value)})
 
     def _take_turns(self, unit):
+        if unit.attacker_side:
+            self._gain_rage(10)   # an ally acted
         self._turn(unit)
         while unit.extra_actions > 0 and unit.alive and not self._over():
             unit.extra_actions -= 1
             self._turn(unit)
+
+    def _gain_rage(self, amount):
+        if self.leaders:
+            self.rage = min(RAGE_MAX, self.rage + amount)
+
+    # ---- leader skills ---------------------------------------------------
+
+    def _leader_cast(self):
+        """Cast the first equipped leader skill whose rage and cooldown are ready."""
+        if not self.leaders or self.rage < RAGE_MAX:
+            return
+        skill = next((s for s in self.leaders if self.round >= self.leader_ready[s.id]), None)
+        if skill is None:
+            return
+        hurt, touched, arts = {}, [], []
+        for effect in skill.effects:
+            self._leader_effect(skill, effect, hurt, touched, arts)
+        if not touched:
+            return
+        self.emit("skill_hero", {"src": 0, "name": skill.script, "skillid": skill.id,
+                                 "des": touched, "hurt": [hurt.get(p, 0) for p in touched]})
+        self._emit_hp(set(touched))
+        self._emit_art(arts)
+        for unit in self.units:
+            if unit.hp <= 0 and not unit.dead:
+                self._die(unit, None, 0)
+        self.rage = 0
+        self.leader_ready[skill.id] = self.round + skill.cd
+
+    def _leader_effect(self, skill, effect, hurt, touched, arts):
+        targets = self._leader_targets(effect.get("target", skill.aim), skill)
+        for target in targets:
+            if effect["op"] == "damage":
+                amount = round(self._leader_stat(effect["stat"]) * skill.value(effect["scale"]) / 100)
+                amount = self._leader_hurt(target, amount)
+                if target.pos not in touched:
+                    touched.append(target.pos)
+                hurt[target.pos] = hurt.get(target.pos, 0) + amount
+            elif effect["op"] == "control":
+                if target.immune_to_control():
+                    continue
+                target.controls[effect["kind"]] = max(1, int(effect.get("rounds", 1)))
+                arts.append((target.pos, CONTROL_ART[effect["kind"]]))
+
+    def _leader_targets(self, selector, skill):
+        enemies = self._alive(False)
+        allies = self._alive(True)
+        if selector == "enemy_all":
+            return enemies
+        if selector == "enemy_random":
+            return self.rng.sample(enemies, min(3, len(enemies)))
+        if selector == "enemy_lowest_hp":
+            return sorted(enemies, key=lambda u: u.hp_pct)[:1]
+        if selector == "ally_all":
+            return allies
+        if selector == "ally_lowest_hp":
+            return sorted(allies, key=lambda u: u.hp_pct)[:1]
+        return enemies[:1]
+
+    def _leader_stat(self, name):
+        """The aggregate of one side's live units a leader skill scales from."""
+        kind, how, stat = name.split("_", 2)
+        pool = self._alive(True) if kind == "ally" else self._alive(False)
+        values = [unit.stat(stat) for unit in pool] or [0]
+        return max(values) if how == "max" else sum(values) / len(values)
+
+    @staticmethod
+    def _leader_hurt(target, amount):
+        """Leader damage goes through invincibility and shields, like any other hit."""
+        if target.invincible_rounds > 0:
+            amount = 0
+        elif target.invincible_hits > 0:
+            target.invincible_hits -= 1
+            amount = 0
+        absorbed = min(target.shield, amount)
+        target.shield -= absorbed
+        amount = min(target.hp, amount - absorbed)
+        target.hp -= amount
+        return amount
 
     def _turn(self, unit):
         if not unit.alive:
@@ -476,7 +571,8 @@ class Battle:
         """Final damage of one hit, or None for a miss."""
         caster = cast.caster
         kind = effect.get("type", "phys")
-        if caster.attacker_side != target.attacker_side:
+        # `sure_hit` skips the hit roll ("chắc chắn trúng"); passive element damage does not roll.
+        if caster.attacker_side != target.attacker_side and not effect.get("sure_hit"):
             hit = max(MIN_HIT_CHANCE, caster.stat("hit") - target.stat("dodge"))
             if self.rng.random() * 100 >= hit:
                 return None
@@ -489,10 +585,28 @@ class Battle:
             defense = target.stat("def") * (1 - ignore / 100)
             raw = raw * raw / (raw + defense)
         crit = effect.get("crit")
-        if crit == "always" or (crit != "never" and self.rng.random() * 100 < caster.stat("crit")):
+        crit_chance = caster.stat("crit") + cast.value(effect.get("crit_bonus", 0))
+        if crit == "always" or (crit != "never" and self.rng.random() * 100 < crit_chance):
             raw *= CRIT_MULTIPLIER
         raw *= max(0.0, 1 + caster.stat("dmg_dealt") / 100) * max(0.0, 1 + target.stat("dmg_taken") / 100)
+        # "Giảm thương" (subhurt) is percentage points of the final damage, like dmg_taken.
+        raw *= max(0.0, 1 - target.stat("subhurt") / 100)
         return max(1, round(raw))
+
+    def _op_attr_damage(self, cast, effect, index, target):
+        """Element damage: scale% of the caster's element attack minus the target's defense."""
+        if not target.alive or not cast.caster.alive:
+            return
+        element = effect["element"]
+        if element == "own":
+            element = cast.caster.own_element()
+        raw = cast.caster.element_atk(element) * cast.value(effect["scale"]) / 100
+        amount = round(raw - target.element_dfs(element))
+        cast.touch(target)
+        if amount > 0:
+            self._hurt(cast, target, amount)
+        else:
+            cast.hurt.setdefault(target.pos, 0)
 
     @staticmethod
     def _stat_amount(cast, stat, kind, target):
@@ -523,6 +637,8 @@ class Battle:
         caster = cast.caster
         if caster.attacker_side == target.attacker_side:
             return
+        if target.attacker_side:
+            self._gain_rage(5)   # an ally was hit
         cast.dealt += amount
         steal = round(amount * caster.stat("lifesteal") / 100)
         if steal > 0 and caster.alive:
@@ -540,14 +656,6 @@ class Battle:
         cast.heal[unit.pos] = cast.heal.get(unit.pos, 0) + amount
         cast.changed.add(unit.pos)
         cast.touch(unit)
-
-    def _op_attr_damage(self, cast, effect, index, target):
-        element = effect["element"]
-        raw = cast.caster.element_atk(element) * cast.value(effect["scale"]) / 100
-        amount = round(raw - target.element_dfs(element))
-        if amount > 0 and target.alive:
-            cast.touch(target)
-            self._hurt(cast, target, amount)
 
     def _op_heal(self, cast, effect, index, target):
         of = effect["of"]
@@ -655,19 +763,21 @@ class Battle:
 def build_unit(data: dict) -> Unit:
     """A Unit from the plain dict the campaign builds (see campaign._attackers)."""
     base = {k: data.get(k, 0) for k in ("hp", "patk", "matk", "def", "speed")}
-    base.update(crit=data.get("crit", 0), hit=data.get("hit", 100), dodge=data.get("dodge", 0))
+    base.update(crit=data.get("crit", 0), hit=data.get("hit", 100),
+                dodge=data.get("dodge", 0), subhurt=data.get("subhurt", 0))
     return Unit(pos=data["pos"], base=base, hp=data["hp"], animation=data.get("animation", ""),
                 boss=bool(data.get("boss")), race=data.get("race", -1),
                 elements=data.get("elements", {}), element_def=data.get("element_def", {}),
                 skills=list(data.get("skills", ())))
 
 
-def simulate(attackers: list, defenders: list, rng=None, script=None, layouts=None):
+def simulate(attackers: list, defenders: list, rng=None, script=None, layouts=None,
+             leaders=()):
     """Resolve a fight; returns (winer, frames) in the battle scene's playback format.
 
     Attackers sit at positions 0-4, defenders at 100-104. `script(unit, skill, slot)`
     names the client animation for a skill; `layouts` is (attacker, defender)
-    `formation_layout` maps.
+    `formation_layout` maps. `leaders` are the attacker side's leader skills.
     """
     units = [build_unit(u) for u in attackers + defenders]
-    return Battle(units, rng=rng, script=script, layouts=layouts).run()
+    return Battle(units, rng=rng, script=script, layouts=layouts, leaders=leaders).run()

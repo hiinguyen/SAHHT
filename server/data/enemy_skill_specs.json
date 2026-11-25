@@ -1,0 +1,2603 @@
+{
+ "40110": {
+  "trigger": "active",
+  "aim": "enemy_back",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect"
+   }
+  ]
+ },
+ "40120": {
+  "trigger": "active",
+  "aim": "enemy_all",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "enemy_all",
+    "type": "phys",
+    "scale": "effect"
+   },
+   {
+    "op": "control",
+    "target": "enemy_front",
+    "kind": "stun",
+    "rounds": 1
+   },
+   {
+    "op": "control",
+    "target": "enemy_all",
+    "kind": "stun",
+    "rounds": 1,
+    "chance": 10
+   }
+  ]
+ },
+ "40130": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": 100
+   }
+  ],
+  "note": "'30% Ma Công chuyển thành Vật Công' bỏ qua, chỉ giữ đòn vật lý"
+ },
+ "40210": {
+  "trigger": "after_hit",
+  "limit_per_round": 1,
+  "effects": [
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "dodge",
+    "value": "effect",
+    "rounds": 1
+   }
+  ]
+ },
+ "40220": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect"
+   }
+  ]
+ },
+ "40230": {
+  "trigger": "before_battle",
+  "effects": [
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "def",
+    "value": "-effect",
+    "rounds": 2
+   },
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "dodge",
+    "value": "effect",
+    "rounds": 2
+   }
+  ]
+ },
+ "40310": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect"
+   },
+   {
+    "op": "buff",
+    "target": "target",
+    "stat": "def",
+    "value": -60,
+    "rounds": 1
+   }
+  ]
+ },
+ "40320": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect"
+   },
+   {
+    "op": "buff",
+    "target": "target",
+    "stat": "patk",
+    "value": -10,
+    "rounds": 1,
+    "if": "target_not_race:2"
+   },
+   {
+    "op": "buff",
+    "target": "target",
+    "stat": "patk",
+    "value": -40,
+    "rounds": 1,
+    "if": "target_race:2"
+   }
+  ],
+  "note": "'-50% hiệu quả BOSS' không biểu diễn được"
+ },
+ "40330": {
+  "trigger": "active",
+  "aim": "enemy_all",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "enemy_all",
+    "type": "phys",
+    "scale": "effect"
+   }
+  ]
+ },
+ "40410": {
+  "trigger": "after_hit",
+  "effects": [
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "def",
+    "value": "effect",
+    "rounds": 2,
+    "max_stack": 3
+   }
+  ]
+ },
+ "40420": {
+  "trigger": "before_hit",
+  "limit_per_round": 1,
+  "effects": [
+   {
+    "op": "heal",
+    "target": "self",
+    "scale": "effect",
+    "of": "max_hp"
+   }
+  ]
+ },
+ "40430": {
+  "trigger": "active",
+  "aim": "enemy_all",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "enemy_all",
+    "type": "phys",
+    "scale": "effect"
+   },
+   {
+    "op": "heal",
+    "target": "self",
+    "scale": 10,
+    "of": "damage"
+   }
+  ]
+ },
+ "40610": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "enemy_row_front",
+    "type": "magic",
+    "scale": "effect"
+   },
+   {
+    "op": "control",
+    "target": "enemy_row_front",
+    "kind": "stun",
+    "rounds": 1,
+    "chance": 40
+   }
+  ]
+ },
+ "40620": {
+  "trigger": "active",
+  "aim": "enemy_all",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "enemy_all",
+    "type": "magic",
+    "scale": "effect"
+   },
+   {
+    "op": "heal",
+    "target": "ally_all",
+    "scale": 5,
+    "of": "matk"
+   }
+  ]
+ },
+ "40630": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect"
+   },
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "magic",
+    "scale": "effect"
+   },
+   {
+    "op": "rage",
+    "value": 15,
+    "side": "ally"
+   }
+  ]
+ },
+ "40710": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect"
+   },
+   {
+    "op": "buff",
+    "target": "target",
+    "stat": "patk",
+    "value": -20,
+    "rounds": 1
+   }
+  ]
+ },
+ "40720": {
+  "trigger": "active",
+  "aim": "enemy_all",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "enemy_all",
+    "type": "phys",
+    "scale": 110
+   },
+   {
+    "op": "buff",
+    "target": "enemy_all",
+    "stat": "patk",
+    "value": "-effect",
+    "rounds": 2
+   }
+  ]
+ },
+ "40730": {
+  "trigger": "after_hit",
+  "effects": [
+   {
+    "op": "heal",
+    "target": "self",
+    "scale": "effect",
+    "of": "max_hp",
+    "if": "target_atk_lower"
+   },
+   {
+    "op": "control",
+    "target": "target",
+    "kind": "fear",
+    "rounds": 1
+   },
+   {
+    "op": "rage",
+    "value": -10,
+    "side": "enemy"
+   }
+  ]
+ },
+ "40810": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect"
+   }
+  ]
+ },
+ "40820": {
+  "trigger": "before_round",
+  "effects": [
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "patk",
+    "value": "effect",
+    "rounds": 0,
+    "if": "enemy_has_race:2"
+   }
+  ]
+ },
+ "40830": {
+  "trigger": "before_battle",
+  "effects": [
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "patk",
+    "value": "effect",
+    "rounds": 3
+   }
+  ]
+ },
+ "40910": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "magic",
+    "scale": "effect",
+    "bonus": [
+     {
+      "if": "target_has:burn",
+      "pct": 100
+     }
+    ]
+   }
+  ]
+ },
+ "40920": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "magic",
+    "scale": "effect"
+   },
+   {
+    "op": "buff",
+    "target": "ally_all",
+    "stat": "reflect",
+    "value": "effect",
+    "rounds": 0
+   }
+  ]
+ },
+ "40930": {
+  "trigger": "active",
+  "aim": "enemy_all",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "enemy_all",
+    "type": "magic",
+    "scale": "effect"
+   },
+   {
+    "op": "dot",
+    "target": "enemy_all",
+    "kind": "burn",
+    "scale": 5,
+    "of": "target_max_hp",
+    "rounds": 3,
+    "chance": 50
+   }
+  ]
+ },
+ "41010": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect",
+    "ignore_def": "effect"
+   },
+   {
+    "op": "dot",
+    "target": "target",
+    "kind": "bleed",
+    "scale": 3,
+    "of": "target_max_hp",
+    "rounds": 3
+   }
+  ]
+ },
+ "41020": {
+  "trigger": "before_round",
+  "effects": [
+   {
+    "op": "heal",
+    "target": "self",
+    "scale": "effect",
+    "of": "max_hp"
+   }
+  ],
+  "note": "'mỗi hiệp -20% hiệu quả trị liệu' không biểu diễn được"
+ },
+ "41030": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect",
+    "bonus": [
+     {
+      "if": "target_has:bleed",
+      "pct": 50
+     }
+    ]
+   }
+  ]
+ },
+ "41110": {
+  "trigger": "after_hit",
+  "limit_per_round": 1,
+  "effects": [
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "dmg_taken",
+    "value": "-effect100",
+    "rounds": 1
+   }
+  ]
+ },
+ "41120": {
+  "trigger": "before_round",
+  "effects": [
+   {
+    "op": "heal",
+    "target": "self",
+    "scale": "effect",
+    "of": "patk"
+   }
+  ],
+  "note": "'mỗi hiệp -20% hiệu quả hồi phục' không biểu diễn được"
+ },
+ "41130": {
+  "trigger": "active",
+  "aim": "enemy_line",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "enemy_line",
+    "type": "phys",
+    "scale": "effect"
+   },
+   {
+    "op": "control",
+    "target": "enemy_line",
+    "kind": "stun",
+    "rounds": 1
+   }
+  ]
+ },
+ "41210": {
+  "trigger": "before_hit",
+  "limit_per_round": 2,
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect"
+   }
+  ]
+ },
+ "41220": {
+  "trigger": "after_hit",
+  "effects": [
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "def",
+    "value": "effect",
+    "rounds": 2,
+    "max_stack": 3
+   }
+  ]
+ },
+ "41230": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": 100
+   },
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect",
+    "stat": "def"
+   }
+  ],
+  "note": "'Tấn Công thường + effect% Phòng Ngự' tách thành hai đòn"
+ },
+ "41310": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect"
+   },
+   {
+    "op": "buff",
+    "target": "target",
+    "stat": "speed",
+    "value": -30,
+    "rounds": 0
+   }
+  ]
+ },
+ "41320": {
+  "trigger": "on_attack",
+  "effects": [
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "patk",
+    "value": "effect",
+    "rounds": 0,
+    "max_stack": 3
+   }
+  ]
+ },
+ "41330": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "control",
+    "target": "target",
+    "kind": "stun",
+    "rounds": 2
+   },
+   {
+    "op": "control",
+    "target": "self",
+    "kind": "stun",
+    "rounds": 2
+   },
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect"
+   }
+  ]
+ },
+ "41410": {
+  "trigger": "active",
+  "aim": "enemy_line",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "enemy_line",
+    "type": "magic",
+    "scale": "effect"
+   },
+   {
+    "op": "dot",
+    "target": "enemy_front",
+    "kind": "burn",
+    "scale": 3,
+    "of": "target_max_hp",
+    "rounds": 3
+   }
+  ]
+ },
+ "41420": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect"
+   },
+   {
+    "op": "control",
+    "target": "target",
+    "kind": "stun",
+    "rounds": 1
+   }
+  ]
+ },
+ "41430": {
+  "trigger": "active",
+  "aim": "enemy_line",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "enemy_line",
+    "type": "magic",
+    "scale": "effect"
+   },
+   {
+    "op": "damage",
+    "target": "enemy_front",
+    "type": "phys",
+    "scale": "effect+20"
+   }
+  ]
+ },
+ "41710": {
+  "trigger": "active",
+  "aim": "enemy_back",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect"
+   }
+  ]
+ },
+ "41720": {
+  "trigger": "on_death",
+  "effects": [
+   {
+    "op": "revive",
+    "target": "self",
+    "scale": 50
+   },
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "speed",
+    "value": "effect",
+    "rounds": 2,
+    "if": "round_le:9"
+   },
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "dodge",
+    "value": "effect",
+    "rounds": 2,
+    "if": "round_le:9"
+   }
+  ]
+ },
+ "41730": {
+  "trigger": "active",
+  "aim": "enemy_all",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "enemy_all",
+    "type": "phys",
+    "scale": "effect"
+   },
+   {
+    "op": "damage",
+    "target": "enemy_row_back",
+    "type": "phys",
+    "scale": 20
+   }
+  ]
+ },
+ "41810": {
+  "trigger": "active",
+  "aim": "enemy_row_front",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "enemy_row_front",
+    "type": "magic",
+    "scale": "effect"
+   },
+   {
+    "op": "control",
+    "target": "enemy_row_front",
+    "kind": "stun",
+    "rounds": 1
+   },
+   {
+    "op": "control",
+    "target": "enemy_all",
+    "kind": "stun",
+    "rounds": 1,
+    "chance": 10
+   }
+  ]
+ },
+ "41820": {
+  "trigger": "before_hit",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "magic",
+    "scale": "effect"
+   }
+  ]
+ },
+ "41830": {
+  "trigger": "before_battle",
+  "effects": [
+   {
+    "op": "buff",
+    "target": "ally_all",
+    "stat": "patk",
+    "value": "effect",
+    "rounds": 2
+   },
+   {
+    "op": "buff",
+    "target": "ally_all",
+    "stat": "matk",
+    "value": "effect",
+    "rounds": 2
+   }
+  ]
+ },
+ "42110": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "magic",
+    "scale": "effect"
+   },
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "magic",
+    "scale": 100,
+    "chance": 20
+   }
+  ]
+ },
+ "42120": {
+  "trigger": "after_hit",
+  "effects": [
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "dodge",
+    "value": "effect",
+    "rounds": 2
+   }
+  ]
+ },
+ "42130": {
+  "trigger": "active",
+  "aim": "enemy_line",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "enemy_line",
+    "type": "magic",
+    "scale": "effect"
+   }
+  ],
+  "note": "'chắc chắn trúng nếu mục tiêu có Né' chưa biểu diễn được"
+ },
+ "42310": {
+  "trigger": "before_battle",
+  "effects": [
+   {
+    "op": "buff",
+    "target": "ally_all",
+    "stat": "patk",
+    "value": "effect",
+    "rounds": 3
+   }
+  ]
+ },
+ "42320": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect",
+    "bonus": [
+     {
+      "if": "target_has:bleed",
+      "pct": 30
+     }
+    ]
+   },
+   {
+    "op": "control",
+    "target": "target",
+    "kind": "stun",
+    "rounds": 1,
+    "if": "target_has:bleed"
+   }
+  ]
+ },
+ "42330": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "all",
+    "value": 20,
+    "rounds": 2
+   },
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect"
+   }
+  ]
+ },
+ "42410": {
+  "trigger": "before_battle",
+  "effects": [
+   {
+    "op": "buff",
+    "target": "ally_all",
+    "stat": "def",
+    "value": "effect",
+    "rounds": 2
+   }
+  ]
+ },
+ "42420": {
+  "trigger": "after_hit",
+  "limit_per_round": 1,
+  "effects": [
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "dmg_taken",
+    "value": "-effect100",
+    "rounds": 1
+   }
+  ],
+  "note": "'nhân đôi hiệu quả với Zombie' chưa biểu diễn được"
+ },
+ "42430": {
+  "trigger": "before_round",
+  "effects": [
+   {
+    "op": "heal",
+    "target": "self",
+    "scale": "effect",
+    "of": "max_hp"
+   }
+  ],
+  "note": "'mỗi hiệp -20% hiệu quả hồi phục' không biểu diễn được"
+ },
+ "42510": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect"
+   },
+   {
+    "op": "heal",
+    "target": "self",
+    "scale": 20,
+    "of": "damage"
+   },
+   {
+    "op": "rage",
+    "value": -5,
+    "side": "enemy"
+   }
+  ]
+ },
+ "42520": {
+  "trigger": "on_death",
+  "effects": [
+   {
+    "op": "revive",
+    "target": "self",
+    "scale": 50
+   },
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "def",
+    "value": "effect",
+    "rounds": 1
+   },
+   {
+    "op": "rage",
+    "value": 50,
+    "side": "ally"
+   }
+  ]
+ },
+ "42530": {
+  "trigger": "before_round",
+  "effects": [
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "dmg_taken",
+    "value": -50,
+    "rounds": 1
+   },
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "patk",
+    "value": "effect",
+    "rounds": 2
+   },
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "matk",
+    "value": "effect",
+    "rounds": 2
+   },
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "speed",
+    "value": "effect",
+    "rounds": 2
+   }
+  ]
+ },
+ "43010": {
+  "trigger": "on_attack",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": 40,
+    "if": "normal_attack"
+   }
+  ]
+ },
+ "43020": {
+  "trigger": "after_hit",
+  "limit_per_round": 1,
+  "effects": [
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "dmg_taken",
+    "value": -50,
+    "rounds": 1,
+    "if": "self_hp_below:15"
+   }
+  ],
+  "note": "ngưỡng HP lấy mức 15% (effect 15)"
+ },
+ "43030": {
+  "trigger": "on_death",
+  "effects": [
+   {
+    "op": "buff",
+    "target": "ally_all",
+    "stat": "def",
+    "value": 100,
+    "rounds": 1
+   }
+  ],
+  "note": "'hồi effect% HP' khi đã tử trận bị bỏ qua"
+ },
+ "43810": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect"
+   },
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": 30,
+    "chance": 50
+   }
+  ]
+ },
+ "43820": {
+  "trigger": "after_hit",
+  "limit_per_round": 1,
+  "effects": [
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "dmg_taken",
+    "value": "-effect",
+    "rounds": 1
+   }
+  ]
+ },
+ "43830": {
+  "trigger": "active",
+  "aim": "enemy_all",
+  "once": true,
+  "effects": [
+   {
+    "op": "damage",
+    "target": "enemy_all",
+    "type": "phys",
+    "scale": "effect"
+   },
+   {
+    "op": "control",
+    "target": "enemy_all",
+    "kind": "stun",
+    "rounds": 1,
+    "chance": 50
+   }
+  ]
+ },
+ "43910": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect"
+   }
+  ],
+  "note": "sát thương ngẫu nhiên trong khoảng effect%..effect+100% lấy mức thấp"
+ },
+ "43920": {
+  "trigger": "after_hit",
+  "limit_per_round": 1,
+  "effects": [
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "dmg_taken",
+    "value": "-effect100",
+    "rounds": 1
+   }
+  ]
+ },
+ "43930": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "magic",
+    "scale": "effect"
+   }
+  ],
+  "note": "cơ số sát thương theo Ma Công cao nhất phe địch chưa biểu diễn được"
+ },
+ "44010": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect",
+    "sure_hit": true,
+    "crit_bonus": 50
+   }
+  ]
+ },
+ "44020": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect"
+   },
+   {
+    "op": "dispel",
+    "target": "ally_random",
+    "what": "debuffs"
+   }
+  ]
+ },
+ "44030": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "patk",
+    "value": "effect",
+    "rounds": 2
+   },
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": 100
+   }
+  ],
+  "note": "'chuyển Ma Công & Phòng Ngự thành Vật Công' rút gọn thành tăng Vật Công"
+ },
+ "44110": {
+  "trigger": "active",
+  "aim": "enemy_back",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "magic",
+    "scale": "effect"
+   },
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "magic",
+    "scale": 50,
+    "if": "self_state:super"
+   }
+  ],
+  "note": "trạng thái Siêu Cấp chưa được đặt trong engine"
+ },
+ "44120": {
+  "trigger": "active",
+  "aim": "enemy_all",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "enemy_all",
+    "type": "magic",
+    "scale": "effect"
+   },
+   {
+    "op": "buff",
+    "target": "ally_all",
+    "stat": "patk",
+    "value": 3,
+    "rounds": 0
+   }
+  ]
+ },
+ "44130": {
+  "trigger": "before_battle",
+  "effects": [
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "all",
+    "value": "effect",
+    "rounds": 2
+   }
+  ],
+  "note": "hồi 10% HP mỗi hiệp kèm theo không biểu diễn được"
+ },
+ "44210": {
+  "trigger": "active",
+  "aim": "enemy_line",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "enemy_line",
+    "type": "magic",
+    "scale": "effect",
+    "bonus": [
+     {
+      "if": "self_state:super",
+      "pct": 30
+     }
+    ]
+   }
+  ],
+  "note": "trạng thái Siêu Saiyan chưa được đặt trong engine"
+ },
+ "44220": {
+  "trigger": "before_battle",
+  "effects": [
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "all",
+    "value": "effect",
+    "rounds": 2
+   }
+  ]
+ },
+ "44230": {
+  "trigger": "on_death",
+  "aim": "enemy_all",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "enemy_all",
+    "type": "magic",
+    "scale": "effect"
+   },
+   {
+    "op": "control",
+    "target": "enemy_all",
+    "kind": "stun",
+    "rounds": 1,
+    "chance": 30
+   }
+  ]
+ },
+ "44310": {
+  "trigger": "active",
+  "aim": "enemy_highest_atk",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "enemy_highest_atk",
+    "type": "phys",
+    "scale": "effect"
+   }
+  ]
+ },
+ "44320": {
+  "trigger": "before_round",
+  "effects": [
+   {
+    "op": "heal",
+    "target": "self",
+    "scale": "effect",
+    "of": "max_hp"
+   }
+  ],
+  "note": "'mỗi hiệp -20% hiệu quả hồi phục' không biểu diễn được"
+ },
+ "44330": {
+  "trigger": "active",
+  "aim": "enemy_all",
+  "once": true,
+  "effects": [
+   {
+    "op": "damage",
+    "target": "enemy_all",
+    "type": "phys",
+    "scale": "effect"
+   },
+   {
+    "op": "control",
+    "target": "enemy_all",
+    "kind": "stun",
+    "rounds": 1,
+    "chance": 50
+   }
+  ]
+ },
+ "44510": {
+  "trigger": "active",
+  "aim": "enemy_row_front",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "enemy_row_front",
+    "type": "magic",
+    "scale": "effect",
+    "bonus": [
+     {
+      "if": "target_has:burn",
+      "pct": 50
+     }
+    ]
+   }
+  ]
+ },
+ "44520": {
+  "trigger": "active",
+  "aim": "enemy_all",
+  "once": true,
+  "effects": [
+   {
+    "op": "damage",
+    "target": "enemy_all",
+    "type": "magic",
+    "scale": "effect"
+   },
+   {
+    "op": "control",
+    "target": "enemy_all",
+    "kind": "stun",
+    "rounds": 1
+   },
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "matk",
+    "value": -50,
+    "rounds": 3
+   },
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "def",
+    "value": -50,
+    "rounds": 3
+   }
+  ]
+ },
+ "44530": {
+  "trigger": "before_round",
+  "effects": [
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "matk",
+    "value": "effect",
+    "rounds": 1
+   },
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "speed",
+    "value": 20,
+    "rounds": 1
+   }
+  ]
+ },
+ "44610": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect"
+   },
+   {
+    "op": "buff",
+    "target": "target",
+    "stat": "all",
+    "value": -10,
+    "rounds": 3,
+    "max_stack": 3
+   }
+  ]
+ },
+ "44620": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect"
+   },
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "speed",
+    "value": 10,
+    "rounds": 3
+   },
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": 100,
+    "bonus": [
+     {
+      "if": "target_has:bleed",
+      "pct": 100
+     }
+    ]
+   }
+  ]
+ },
+ "44630": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": 100
+   },
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect",
+    "stat": "speed"
+   },
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "speed",
+    "value": 10,
+    "rounds": 0,
+    "max_stack": 3
+   }
+  ]
+ },
+ "44710": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect"
+   },
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "patk",
+    "value": 10,
+    "rounds": 3,
+    "max_stack": 5
+   },
+   {
+    "op": "heal",
+    "target": "self",
+    "scale": 30,
+    "of": "damage"
+   }
+  ]
+ },
+ "44720": {
+  "trigger": "on_death",
+  "effects": [
+   {
+    "op": "revive",
+    "target": "self",
+    "scale": 50
+   },
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "patk",
+    "value": "effect",
+    "rounds": 1
+   }
+  ]
+ },
+ "44730": {
+  "trigger": "before_battle",
+  "effects": [
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "max_hp",
+    "value": "effect",
+    "rounds": 0
+   }
+  ],
+  "note": "điều kiện 'kẻ địch cấp cao nhất thấp hơn' chưa có trong engine"
+ },
+ "44910": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect"
+   },
+   {
+    "op": "control",
+    "target": "target",
+    "kind": "stun",
+    "rounds": 1,
+    "chance": 50
+   },
+   {
+    "op": "buff",
+    "target": "target",
+    "stat": "patk",
+    "value": -20,
+    "rounds": 2
+   }
+  ]
+ },
+ "45210": {
+  "trigger": "active",
+  "aim": "enemy_row_front",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "enemy_row_front",
+    "type": "magic",
+    "scale": "effect"
+   },
+   {
+    "op": "dot",
+    "target": "enemy_row_front",
+    "kind": "burn",
+    "scale": 3,
+    "of": "target_max_hp",
+    "rounds": 1
+   }
+  ]
+ },
+ "45220": {
+  "trigger": "before_hit",
+  "effects": [
+   {
+    "op": "buff",
+    "target": "ally_all",
+    "stat": "patk",
+    "value": "effect",
+    "rounds": 1
+   },
+   {
+    "op": "buff",
+    "target": "ally_all",
+    "stat": "matk",
+    "value": "effect",
+    "rounds": 1
+   },
+   {
+    "op": "rage",
+    "value": -10,
+    "side": "enemy"
+   }
+  ]
+ },
+ "45230": {
+  "trigger": "active",
+  "aim": "enemy_line",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "enemy_line",
+    "type": "magic",
+    "scale": "effect"
+   },
+   {
+    "op": "control",
+    "target": "enemy_line",
+    "kind": "stun",
+    "rounds": 1,
+    "if": "target_has:burn"
+   }
+  ]
+ },
+ "45310": {
+  "trigger": "active",
+  "aim": "enemy_line",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "enemy_line",
+    "type": "phys",
+    "scale": "effect"
+   },
+   {
+    "op": "control",
+    "target": "enemy_line",
+    "kind": "stun",
+    "rounds": 1
+   }
+  ]
+ },
+ "45320": {
+  "trigger": "before_battle",
+  "effects": [
+   {
+    "op": "buff",
+    "target": "ally_all",
+    "stat": "def",
+    "value": "effect",
+    "rounds": 2
+   }
+  ]
+ },
+ "45330": {
+  "trigger": "before_round",
+  "effects": [
+   {
+    "op": "heal",
+    "target": "self",
+    "scale": "effect",
+    "of": "max_hp"
+   }
+  ],
+  "note": "'mỗi hiệp -20% hiệu quả hồi phục' không biểu diễn được"
+ },
+ "45410": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect"
+   },
+   {
+    "op": "buff",
+    "target": "target",
+    "stat": "speed",
+    "value": -30,
+    "rounds": 3
+   }
+  ]
+ },
+ "45420": {
+  "trigger": "before_battle",
+  "effects": [
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "dodge",
+    "value": "effect",
+    "rounds": 2
+   }
+  ]
+ },
+ "45430": {
+  "trigger": "active",
+  "aim": "enemy_random",
+  "count": 3,
+  "effects": [
+   {
+    "op": "damage",
+    "target": "enemy_random",
+    "type": "phys",
+    "scale": "effect"
+   }
+  ],
+  "note": "'3 mục tiêu ngẫu nhiên' dùng count 3"
+ },
+ "45510": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect"
+   },
+   {
+    "op": "rage",
+    "value": -20,
+    "side": "enemy",
+    "chance": 50
+   }
+  ]
+ },
+ "45520": {
+  "trigger": "active",
+  "aim": "enemy_line",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "enemy_line",
+    "type": "phys",
+    "scale": "effect"
+   },
+   {
+    "op": "damage",
+    "target": "enemy_back",
+    "type": "phys",
+    "scale": 100
+   }
+  ]
+ },
+ "45530": {
+  "trigger": "before_battle",
+  "effects": [
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "matk",
+    "value": "-effect",
+    "rounds": 2
+   },
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "patk",
+    "value": "effect",
+    "rounds": 2
+   }
+  ]
+ },
+ "45910": {
+  "trigger": "active",
+  "aim": "enemy_back",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect"
+   },
+   {
+    "op": "control",
+    "target": "target",
+    "kind": "stun",
+    "rounds": 1,
+    "chance": 50
+   }
+  ]
+ },
+ "45920": {
+  "trigger": "active",
+  "aim": "enemy_all",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "enemy_all",
+    "type": "phys",
+    "scale": "effect"
+   }
+  ]
+ },
+ "45930": {
+  "trigger": "before_battle",
+  "effects": [
+   {
+    "op": "buff",
+    "target": "ally_all",
+    "stat": "patk",
+    "value": "effect",
+    "rounds": 2
+   },
+   {
+    "op": "buff",
+    "target": "ally_all",
+    "stat": "speed",
+    "value": "effect",
+    "rounds": 2
+   }
+  ]
+ },
+ "60000": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": 116
+   },
+   {
+    "op": "dot",
+    "target": "target",
+    "kind": "poison",
+    "scale": 3,
+    "of": "target_max_hp",
+    "rounds": 3,
+    "chance": 50
+   }
+  ]
+ },
+ "60010": {
+  "trigger": "active",
+  "aim": "enemy_all",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "enemy_all",
+    "type": "phys",
+    "scale": 80
+   }
+  ]
+ },
+ "80001": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect"
+   },
+   {
+    "op": "attr_damage",
+    "target": "target",
+    "element": "own",
+    "scale": "attr"
+   }
+  ]
+ },
+ "90001": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect"
+   },
+   {
+    "op": "attr_damage",
+    "target": "target",
+    "element": "own",
+    "scale": "attr"
+   }
+  ]
+ },
+ "90002": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect"
+   },
+   {
+    "op": "attr_damage",
+    "target": "target",
+    "element": "own",
+    "scale": "attr"
+   }
+  ]
+ },
+ "90003": {
+  "trigger": "active",
+  "aim": "enemy_all",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "enemy_all",
+    "type": "phys",
+    "scale": "effect"
+   },
+   {
+    "op": "attr_damage",
+    "target": "enemy_all",
+    "element": "own",
+    "scale": "attr"
+   },
+   {
+    "op": "rage",
+    "value": -10,
+    "side": "enemy"
+   }
+  ]
+ },
+ "90004": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "magic",
+    "scale": "effect"
+   },
+   {
+    "op": "attr_damage",
+    "target": "target",
+    "element": "own",
+    "scale": "attr"
+   },
+   {
+    "op": "dot",
+    "target": "target",
+    "kind": "poison",
+    "scale": 3,
+    "of": "target_max_hp",
+    "rounds": 3,
+    "chance": 20
+   }
+  ]
+ },
+ "90005": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect"
+   },
+   {
+    "op": "attr_damage",
+    "target": "target",
+    "element": "own",
+    "scale": "attr"
+   }
+  ]
+ },
+ "90006": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect"
+   },
+   {
+    "op": "attr_damage",
+    "target": "target",
+    "element": "own",
+    "scale": "attr"
+   },
+   {
+    "op": "buff",
+    "target": "target",
+    "stat": "speed",
+    "value": "-effect",
+    "rounds": 3,
+    "chance": 50
+   }
+  ]
+ },
+ "90007": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect"
+   },
+   {
+    "op": "attr_damage",
+    "target": "target",
+    "element": "own",
+    "scale": "attr"
+   }
+  ]
+ },
+ "90012": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect"
+   },
+   {
+    "op": "attr_damage",
+    "target": "target",
+    "element": "own",
+    "scale": "attr"
+   },
+   {
+    "op": "control",
+    "target": "target",
+    "kind": "stun",
+    "rounds": 1,
+    "chance": 20
+   }
+  ]
+ },
+ "90013": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect"
+   },
+   {
+    "op": "attr_damage",
+    "target": "target",
+    "element": "own",
+    "scale": "attr"
+   },
+   {
+    "op": "dot",
+    "target": "target",
+    "kind": "bleed",
+    "scale": 5,
+    "of": "target_max_hp",
+    "rounds": 2,
+    "chance": 30
+   }
+  ]
+ },
+ "90014": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect"
+   },
+   {
+    "op": "attr_damage",
+    "target": "target",
+    "element": "own",
+    "scale": "attr"
+   },
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "patk",
+    "value": 10,
+    "rounds": 3,
+    "max_stack": 3
+   }
+  ]
+ },
+ "90015": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect"
+   },
+   {
+    "op": "attr_damage",
+    "target": "target",
+    "element": "own",
+    "scale": "attr"
+   },
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "patk",
+    "value": 10,
+    "rounds": 3,
+    "max_stack": 3
+   }
+  ]
+ },
+ "90016": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect"
+   },
+   {
+    "op": "attr_damage",
+    "target": "target",
+    "element": "own",
+    "scale": "attr"
+   },
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "patk",
+    "value": 10,
+    "rounds": 3,
+    "max_stack": 3
+   }
+  ]
+ },
+ "90017": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect"
+   },
+   {
+    "op": "attr_damage",
+    "target": "target",
+    "element": "own",
+    "scale": "attr"
+   },
+   {
+    "op": "buff",
+    "target": "target",
+    "stat": "speed",
+    "value": -30,
+    "rounds": 2,
+    "chance": 20
+   }
+  ]
+ },
+ "90018": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect"
+   },
+   {
+    "op": "attr_damage",
+    "target": "target",
+    "element": "own",
+    "scale": "attr"
+   },
+   {
+    "op": "control",
+    "target": "target",
+    "kind": "sleep",
+    "rounds": 1,
+    "chance": 20
+   }
+  ]
+ },
+ "90019": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect"
+   },
+   {
+    "op": "attr_damage",
+    "target": "target",
+    "element": "own",
+    "scale": "attr"
+   },
+   {
+    "op": "dot",
+    "target": "target",
+    "kind": "bleed",
+    "scale": 5,
+    "of": "target_max_hp",
+    "rounds": 2,
+    "chance": 30
+   }
+  ]
+ },
+ "90020": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "attr_damage",
+    "target": "target",
+    "element": "own",
+    "scale": "attr"
+   },
+   {
+    "op": "heal",
+    "target": "ally_lowest_hp",
+    "scale": "effect",
+    "of": "max_hp"
+   }
+  ]
+ },
+ "90021": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect"
+   },
+   {
+    "op": "attr_damage",
+    "target": "target",
+    "element": "own",
+    "scale": "attr"
+   },
+   {
+    "op": "buff",
+    "target": "ally_random",
+    "stat": "patk",
+    "value": "effect",
+    "rounds": 2
+   },
+   {
+    "op": "dot",
+    "target": "ally_random",
+    "kind": "poison",
+    "scale": 3,
+    "of": "target_max_hp",
+    "rounds": 2,
+    "chance": 30
+   }
+  ]
+ },
+ "90023": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect"
+   },
+   {
+    "op": "control",
+    "target": "target",
+    "kind": "stun",
+    "rounds": 1,
+    "chance": 30
+   }
+  ]
+ },
+ "90024": {
+  "trigger": "before_battle",
+  "effects": [
+   {
+    "op": "buff",
+    "target": "ally_all",
+    "stat": "patk",
+    "value": "effect",
+    "rounds": 2
+   }
+  ]
+ },
+ "90025": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect",
+    "bonus": [
+     {
+      "if": "self_hp_below:30",
+      "pct": 30
+     }
+    ]
+   }
+  ]
+ },
+ "90026": {
+  "trigger": "after_hit",
+  "effects": [
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "dmg_taken",
+    "value": "-effect",
+    "rounds": 0
+   }
+  ]
+ },
+ "90027": {
+  "trigger": "before_battle",
+  "effects": [
+   {
+    "op": "buff",
+    "target": "enemy_all",
+    "stat": "patk",
+    "value": "-effect",
+    "rounds": 2
+   }
+  ]
+ },
+ "90028": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": 100
+   },
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "patk",
+    "value": "effect",
+    "rounds": 0,
+    "if": "target_not_race:2"
+   },
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "patk",
+    "value": "-effect",
+    "rounds": 0,
+    "if": "target_race:2"
+   }
+  ]
+ },
+ "90029": {
+  "trigger": "before_round",
+  "effects": [
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "patk",
+    "value": "effect",
+    "rounds": 0,
+    "if": "ally_lacks_race:2"
+   }
+  ]
+ },
+ "90033": {
+  "trigger": "after_hit",
+  "effects": [
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "def",
+    "value": "effect",
+    "rounds": 0,
+    "max_stack": 10
+   }
+  ]
+ },
+ "90034": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect"
+   },
+   {
+    "op": "control",
+    "target": "target",
+    "kind": "stun",
+    "rounds": 1,
+    "chance": 30
+   }
+  ]
+ },
+ "90035": {
+  "trigger": "before_battle",
+  "aim": "enemy_all",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "enemy_all",
+    "type": "phys",
+    "scale": "effect"
+   }
+  ]
+ },
+ "90036": {
+  "trigger": "before_round",
+  "effects": [
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "patk",
+    "value": "effect",
+    "rounds": 0
+   }
+  ]
+ },
+ "90037": {
+  "trigger": "after_hit",
+  "effects": [
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "def",
+    "value": "effect",
+    "rounds": 2
+   }
+  ]
+ },
+ "90038": {
+  "trigger": "active",
+  "aim": "enemy_highest_hp",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "enemy_highest_hp",
+    "type": "phys",
+    "scale": "effect"
+   }
+  ]
+ },
+ "90039": {
+  "trigger": "before_round",
+  "effects": [
+   {
+    "op": "heal",
+    "target": "self",
+    "scale": "effect",
+    "of": "max_hp"
+   }
+  ]
+ },
+ "90040": {
+  "trigger": "before_battle",
+  "effects": [
+   {
+    "op": "buff",
+    "target": "self",
+    "stat": "def",
+    "value": "effect",
+    "rounds": 2
+   }
+  ]
+ },
+ "90041": {
+  "trigger": "active",
+  "aim": "enemy_random",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "enemy_random",
+    "type": "phys",
+    "scale": 200
+   }
+  ]
+ },
+ "90042": {
+  "trigger": "active",
+  "aim": "enemy_random",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "enemy_random",
+    "type": "phys",
+    "scale": 100
+   },
+   {
+    "op": "buff",
+    "target": "enemy_random",
+    "stat": "def",
+    "value": "-effect",
+    "rounds": 3
+   }
+  ]
+ },
+ "90044": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": 100
+   },
+   {
+    "op": "heal",
+    "target": "self",
+    "scale": "effect",
+    "of": "max_hp"
+   }
+  ]
+ },
+ "90045": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect"
+   },
+   {
+    "op": "dot",
+    "target": "target",
+    "kind": "poison",
+    "scale": 3,
+    "of": "target_max_hp",
+    "rounds": 3
+   }
+  ],
+  "note": "hiệu ứng nổ độc khi kẻ địch chết trong trạng thái trúng độc bị bỏ qua"
+ },
+ "90046": {
+  "trigger": "on_attack",
+  "effects": [
+   {
+    "op": "buff",
+    "target": "target",
+    "stat": "patk",
+    "value": "-effect",
+    "rounds": 3
+   }
+  ]
+ },
+ "90048": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "magic",
+    "scale": "effect"
+   },
+   {
+    "op": "dot",
+    "target": "target",
+    "kind": "poison",
+    "scale": 3,
+    "of": "target_max_hp",
+    "rounds": 3,
+    "chance": 20
+   }
+  ]
+ },
+ "90049": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "magic",
+    "scale": "effect"
+   }
+  ]
+ },
+ "90050": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "magic",
+    "scale": "effect"
+   },
+   {
+    "op": "dot",
+    "target": "target",
+    "kind": "poison",
+    "scale": 3,
+    "of": "target_max_hp",
+    "rounds": 3,
+    "chance": 20
+   }
+  ]
+ },
+ "90051": {
+  "trigger": "on_attack",
+  "effects": [
+   {
+    "op": "buff",
+    "target": "target",
+    "stat": "patk",
+    "value": "-effect",
+    "rounds": 3
+   }
+  ]
+ },
+ "90052": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect"
+   }
+  ]
+ },
+ "90053": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect"
+   }
+  ]
+ },
+ "90055": {
+  "trigger": "active",
+  "effects": [
+   {
+    "op": "damage",
+    "target": "target",
+    "type": "phys",
+    "scale": "effect"
+   }
+  ]
+ }
+}

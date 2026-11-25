@@ -12,6 +12,7 @@ from pathlib import Path
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 SPECS_PATH = DATA_DIR / "skill_specs.json"
+ENEMY_SPECS_PATH = DATA_DIR / "enemy_skill_specs.json"
 ANIMS_PATH = DATA_DIR / "skill_anims.json"
 LAST_HERO_ID = 38700           # the last hero released in 2018; specs cover heroes up to it
 NORMAL_ATTACK_SCRIPT = "skill1"  # every hero animation folder has it
@@ -45,7 +46,15 @@ class Skill:
     def value(self, v) -> float:
         if isinstance(v, str):
             sign, word = (-1, v[1:]) if v.startswith("-") else (1, v)
-            return sign * (self.effect if word == "effect" else self.attr)
+            offset = 0.0
+            for separator in ("+", "-"):
+                if separator in word:
+                    word, _, tail = word.partition(separator)
+                    offset = float(tail) * (1 if separator == "+" else -1)
+                    break
+            base = {"effect": self.effect, "attr": self.attr,
+                    "effect100": self.effect / 100, "attr100": self.attr / 100}[word]
+            return sign * (base + offset)
         return float(v)
 
 
@@ -54,21 +63,31 @@ def _load_json(path: Path) -> dict:
 
 
 class SkillBook:
-    """Specs, skill_detail and the client's animation scripts, indexed once."""
+    """Specs, skill_detail and the client's animation scripts, indexed once.
 
-    def __init__(self, skill_detail: dict, specs: dict, anims: dict):
+    Heroes and campaign enemies are two separate sets of specs (`skill_specs.json`
+    and `enemy_skill_specs.json`) on the same DSL. Ids are unique across both so
+    `skill()` needs no source argument.
+    """
+
+    def __init__(self, skill_detail: dict, specs: dict, anims: dict, enemy_specs: dict = None):
+        enemy_specs = enemy_specs or {}
+        duplicates = set(specs) & set(enemy_specs)
+        if duplicates:
+            raise ValueError(f"skill specs defined twice: {sorted(duplicates)}")
         self._detail = skill_detail
-        self._specs = specs
+        self._specs = {**specs, **enemy_specs}
         self._anims = {name: frozenset(scripts) for name, scripts in anims.items()}
         self._root = {}
-        for base in sorted(int(k) for k in specs):
+        for base in sorted(int(k) for k in self._specs):
             for tier in self.chain(base):
                 self._root.setdefault(tier, base)
 
     @classmethod
     def load(cls, configs) -> "SkillBook":
         return configs.derived("skill_book", lambda: cls(
-            configs.get("skill_detail"), _load_json(SPECS_PATH), _load_json(ANIMS_PATH)))
+            configs.get("skill_detail"), _load_json(SPECS_PATH), _load_json(ANIMS_PATH),
+            _load_json(ENEMY_SPECS_PATH)))
 
     def chain(self, base: int) -> list:
         """The base skill and every tier reached through is_evolution."""
@@ -118,6 +137,10 @@ class SkillBook:
         slot_pattern = re.compile(rf"_s{slot}(_\d+)?$")
         by_slot = sorted(s for s in scripts if slot_pattern.search(s))
         return by_slot[0] if by_slot else NORMAL_ATTACK_SCRIPT
+
+    def has_animation(self, animation: str) -> bool:
+        """Whether the client ships skill scripts for a hero animation."""
+        return animation in self._anims
 
     def hero_skills(self, character: dict) -> list:
         """(slot, base skill id) for every skill slot of a hero."""

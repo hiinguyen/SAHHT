@@ -9,16 +9,19 @@ so what the server grants matches what the client shows:
 - combat power: game_util.getCombatValue, without the gear and bonus terms (none exist yet).
 """
 
+import math
 from dataclasses import dataclass
 
+from .equipment import ELEMENT_KEYS
 from .skills import SkillBook
 
-SKILL_SLOTS = 3            # battle skill slots; slots 4-5 of 5-skill heroes are swap options
+SKILL_SLOTS = 5            # skill slots a 5-skill hero has (4-5 are extra swap options)
+BATTLE_SKILLS = 3          # slots a card brings to a battle; the rest wait on the bench
 STATS = ("hp", "patk", "matk", "def", "speed")
 EVOLUTION_STATS = ("patk", "matk", "def", "speed", "hp")   # order of evolution typeN lists
 TEAM_COMBAT_SLOTS = 8      # getCombatValue walks team slots 1..8: attack 1-5, bench 6-8
 NO_SKILL = {"s": 0, "lv": 0, "exp": 0, "avail": 0}
-ACTIVE, LOCKED = 2, 0      # skill avail values the client understands
+LOCKED, UNLOCKED, ACTIVE = 0, 1, 2   # skill avail: locked, unlocked not in the battle set, active
 
 
 @dataclass(frozen=True)
@@ -107,23 +110,38 @@ class Rules:
 
     # ---- skills ----------------------------------------------------------
 
-    def skill_slots(self, character: dict, step: int) -> list:
-        """(slot, skill id, avail) for slots 1..3; skill id 0 when the hero has no such slot."""
+    def skill_slots(self, character: dict, step: int, chosen=()) -> list:
+        """(slot, skill id, avail) for slots 1..skill_num; skill id 0 when the hero has no
+        such slot. An evolved slot is unlocked; the three the card chose for battle are
+        ACTIVE and the other unlocked ones are UNLOCKED (`avail` 1). Slots 4-5 exist only
+        on 5-skill heroes, carry no evolution tier, and start unlocked."""
         tiers = self.evolution_row(character, step).get("skill", [1, 0, 0])
+        chosen = set(chosen) if chosen else set(range(1, BATTLE_SKILLS + 1))
+        # Slots 1-3 always exist (the client draws them); 4-5 only on 5-skill heroes.
+        count = max(BATTLE_SKILLS, min(character.get("skill_num", 0), SKILL_SLOTS))
         slots = []
-        for slot in range(1, SKILL_SLOTS + 1):
+        for slot in range(1, count + 1):
             source = character.get(f"skill_{slot}_source") or []
             if slot > character.get("skill_num", 0) or not source:
                 slots.append((slot, 0, LOCKED))
                 continue
             base = source[0][0]
+            if slot > BATTLE_SKILLS:
+                slots.append((slot, base, ACTIVE if slot in chosen else UNLOCKED))
+                continue
             tier = tiers[slot - 1] if slot - 1 < len(tiers) else 0
             chain = self.book.chain(base) or [base]
             if tier <= 0:
                 slots.append((slot, base, LOCKED))
             else:
-                slots.append((slot, chain[min(tier, len(chain)) - 1], ACTIVE))
+                slots.append((slot, chain[min(tier, len(chain)) - 1],
+                              ACTIVE if slot in chosen else UNLOCKED))
         return slots
+
+    def battle_slots(self, card: dict) -> tuple:
+        """The skill slots a card casts in battle: its saved choice, else the first three."""
+        chosen = card.get("battle_slots") or []
+        return tuple(chosen) if len(chosen) == BATTLE_SKILLS else tuple(range(1, BATTLE_SKILLS + 1))
 
     def skill_exp_needed(self, skill_id: int, level: int) -> int | None:
         detail = self.skill_detail.get(str(skill_id), {})
@@ -146,13 +164,18 @@ class Rules:
             "exp": card["exp"], "pre_exp": self.card_pre_exp(character, lv),
             "step": step, "evo": step, "bre": 0, "star": 0,
             "quality": character.get("quality", 0),
+            # Server-side: the three skill slots this card casts in battle.
+            "battle_slots": list(self.battle_slots(card)),
+            # The client reads "user" here as the player's lock; other flags are team,
+            # training and dispatch, none of which this server stores.
+            "remove_avail": ["user"] if card.get("locked") else [],
         }
         bonus = self.evolution_bonus(character, step)
         for stat in STATS:
             doc[stat] = (character[f"base_{stat}"] + character[f"growth_{stat}"] * (lv - 1)
                          + bonus.get(stat, 0))
         progress = card.get("skills", {})
-        for slot, skill_id, avail in self.skill_slots(character, step):
+        for slot, skill_id, avail in self.skill_slots(character, step, self.battle_slots(card)):
             if skill_id == 0:
                 doc[f"s_{slot}"] = dict(NO_SKILL)
                 continue
@@ -162,7 +185,7 @@ class Rules:
 
     # ---- combat power ----------------------------------------------------
 
-    def card_combat(self, doc: dict) -> float:
+    def card_combat(self, doc: dict, fate: dict | None = None) -> float:
         factor = 1.0
         for slot in range(1, SKILL_SLOTS + 1):
             skill = doc.get(f"s_{slot}") or NO_SKILL
@@ -172,10 +195,17 @@ class Rules:
             quality = self.skill_detail.get(str(skill["s"]), {}).get("skill_quality", -1)
             if row and 0 <= quality <= 7:
                 factor += row.get(str(quality), 0)
-        base = sum(int(doc[stat] * self.combat_base.get(stat, 0)) for stat in STATS)
-        return base * factor
+        # Fate scales a whole stat (card + gear) before it enters combat, as getCombatValue.
+        base = sum(math.floor(doc[stat] * self.combat_base.get(stat, 0)
+                              * (1 + (fate or {}).get(stat, 0) / 100)) for stat in STATS)
+        # Elemental stats enter combat power at face value, outside the skill factor
+        # (getCombatValue's COMBAT_ABILITY_TABLE.card loop).
+        elemental = sum(doc.get(stat, 0) for stat in ELEMENT_KEYS)
+        return base * factor + elemental
 
-    def team_combat(self, docs_by_slot: dict) -> int:
+    def team_combat(self, docs_by_slot: dict, fates_by_slot: dict | None = None) -> int:
         """Combat power of the attack and bench slots (team slots 1..8)."""
-        return int(sum(self.card_combat(doc) for slot, doc in docs_by_slot.items()
+        fates = fates_by_slot or {}
+        return int(sum(self.card_combat(doc, fates.get(slot))
+                       for slot, doc in docs_by_slot.items()
                        if slot < TEAM_COMBAT_SLOTS))

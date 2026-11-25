@@ -3,9 +3,9 @@
  "city_order_max": null,
  "modules": {
   "active": {
-   "phase": null,
-   "open": false,
-   "reason": "ngoài phạm vi 2018: khung sự kiện giới hạn thời gian (game_activity_new_pop.lua), gồm sự kiện nạp và quay thưởng"
+   "phase": 4,
+   "open": true,
+   "reason": "sảnh hoạt động: tài nguyên, thử thách ngày và cực hạn, kinh nghiệm, sinh tồn (active.py, survival.py); hàng khác bị ẩn bằng config_overrides"
   },
   "arena": {
    "phase": 6,
@@ -123,13 +123,11 @@
   },
   "equip": {
    "phase": 2,
-   "open": false,
-   "reason": "trang bị: game_ui/equip_enchanting.lua, game_ui/game_equip_forge.lua; lộ trình giai đoạn 2"
+   "open": true
   },
   "equip_gacha": {
    "phase": 2,
-   "open": false,
-   "reason": "chiêu mộ trang bị: game_ui/game_gacha_equip.lua; lộ trình giai đoạn 2"
+   "open": true
   },
   "escort": {
    "phase": null,
@@ -143,8 +141,7 @@
   },
   "factory": {
    "phase": 2,
-   "open": false,
-   "reason": "xưởng chế tạo và nâng trang bị: game_ui/equipment_strengthen.lua; lộ trình giai đoạn 2"
+   "open": true
   },
   "fire_chess": {
    "phase": null,
@@ -171,9 +168,9 @@
    "open": true
   },
   "gem": {
-   "phase": 2,
-   "open": false,
-   "reason": "đá quý: game_ui/gem_system_synthesis.lua, game_ui/gem_system_strengthen_scene.lua; lộ trình giai đoạn 2"
+   "phase": 3,
+   "open": true,
+   "reason": "đá quý: hợp thành, phân giải, tiến cấp và gắn lên đội hình (gem.upgrade không có do màn dùng trường cũ); giai đoạn 3 nhánh G"
   },
   "gem_fate": {
    "phase": 2,
@@ -291,7 +288,7 @@
   },
   "leader_skill": {
    "phase": 3,
-   "open": false,
+   "open": true,
    "reason": "kỹ năng đội trưởng: game_ui/skills_practice_scene.lua; lộ trình giai đoạn 3"
   },
   "limit_time_war": {
@@ -754,8 +751,8 @@
    "reason": "không nơi nào trong Lua gọi view này"
   },
   "6": {
-   "open": false,
-   "reason": "không nơi nào trong Lua gọi view này"
+   "open": true,
+   "reason": "nút Hoạt động ở màn chính (top_btn_name_tab, game_main_scene.lua) mở sảnh active.index"
   },
   "7": {
    "module": "arena",
@@ -790,8 +787,8 @@
    "reason": "không nơi nào trong Lua gọi view này"
   },
   "15": {
-   "module": "leader_skill",
-   "reason": "Kĩ năng nhân vật chính (menu game_function_pop.lua): leader_skill.open; giai đoạn 3"
+   "open": true,
+   "reason": "Kĩ năng nhân vật chính (leader_skill), giai đoạn 3"
   },
   "16": {
    "module": "commander",
@@ -823,15 +820,14 @@
   },
   "23": {
    "module": "equip",
-   "reason": "Tiến hóa trang bị (menu game_function_pop.lua); giai đoạn 2"
+   "reason": "Tiến hóa trang bị (menu game_function_pop.lua); giai đoạn 2, đợt 2"
   },
   "24": {
    "module": "equip",
-   "reason": "Tinh luyện trang bị (menu game_function_pop.lua); giai đoạn 2"
+   "reason": "Tinh luyện trang bị (menu game_function_pop.lua); giai đoạn 2, đợt 3"
   },
   "25": {
-   "module": "equip",
-   "reason": "Tách trang bị (menu game_function_pop.lua); giai đoạn 2"
+   "module": "equip"
   },
   "26": {
    "open": false,
@@ -1018,8 +1014,7 @@
    "reason": "nút đá quý trong pop thông tin tướng; giai đoạn 2"
   },
   "131": {
-   "module": "equip",
-   "reason": "phụ ma trang bị (menu game_function_pop.lua); giai đoạn 2"
+   "module": "equip"
   },
   "133": {
    "open": false,
@@ -1042,8 +1037,7 @@
    "reason": "siêu tiến hóa (menu game_function_pop.lua): ngoài phạm vi 2018"
   },
   "148": {
-   "module": "equip",
-   "reason": "tẩy luyện trang bị (menu game_function_pop.lua); giai đoạn 2"
+   "module": "equip"
   },
   "151": {
    "open": false,
@@ -1078,12 +1072,11 @@
    "reason": "nút linh hồn trong màn đội hình; giai đoạn 5"
   },
   "167": {
-   "module": "equip",
-   "reason": "rèn trang bị (menu game_function_pop.lua); giai đoạn 2"
+   "module": "equip"
   },
   "170": {
-   "module": "equip",
-   "reason": "nút trong equip_evolution.lua và equipment_quik_pop.lua; giai đoạn 2"
+   "open": false,
+   "reason": "nút trong equip_evolution.lua và equipment_quik_pop.lua: chưa làm trong đợt trang bị cơ bản; giai đoạn 2"
   },
   "171": {
    "module": "clone_lane",
@@ -1126,12 +1119,11 @@
    "reason": "nút linh hồn trong đội hình thần giới; giai đoạn 5"
   },
   "181": {
-   "module": "gem",
-   "reason": "cờ đá quý đội trong đội hình thần giới; giai đoạn 2"
+   "module": "god_field",
+   "reason": "cờ đá quý đội trong đội hình thần giới: ngoài phạm vi 2018"
   },
   "182": {
-   "module": "equip",
-   "reason": "trang bị vận mệnh (menu game_function_pop.lua, game_equip_info_pop.lua); giai đoạn 2"
+   "module": "equip"
   },
   "185": {
    "open": false,
@@ -1162,8 +1154,7 @@
    "reason": "nút trong game_combiner_detail.lua (thần thú)"
   },
   "193": {
-   "module": "equip",
-   "reason": "nút thứ hai trong game_equip_fateUpRefresh_pop.lua; giai đoạn 2"
+   "module": "equip"
   },
   "194": {
    "module": "offline_dispatch",
@@ -1222,8 +1213,8 @@
    "reason": "không nơi nào trong Lua gọi view này"
   },
   "208": {
-   "module": "equip",
-   "reason": "chế tạo trang bị (menu game_function_pop.lua); giai đoạn 2"
+   "open": false,
+   "reason": "chế tạo trang bị (menu game_function_pop.lua): chưa làm trong đợt trang bị cơ bản; giai đoạn 2"
   },
   "209": {
    "open": false,

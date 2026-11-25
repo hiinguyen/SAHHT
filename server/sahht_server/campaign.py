@@ -9,10 +9,13 @@ import re
 import time
 from dataclasses import dataclass
 
+from . import equipment, gems
+from .difficulty import Difficulty
 from .battle import WIN, formation_layout, simulate
 from .handlers import Request, Services, current_formation, fail, formation_cards, is_int, ok
+from .leader_skill import LeaderBook
 from .player import gain_exp, seed_guides
-from .progression import ACTIVE, Rules
+from .progression import ACTIVE, SKILL_SLOTS, Rules
 from .rewards import Loot, client_cache, grant, merge_cache, roll
 from .skills import SkillBook
 
@@ -26,9 +29,11 @@ TMX_SIZE_RE = re.compile(r'<map\b[^>]*\bwidth="(\d+)"[^>]*\bheight="(\d+)"')
 BASE_BUILDING = 100000   # the player's own camp, drawn on every city grid
 EMPTY_CELL = (1, 0, "", 1)
 VISIBLE, CLEARED, TARGET = 0, 1, 2   # land cell open types the client understands
-# Heroes have no crit/hit/dodge columns; these match an ordinary campaign enemy.
-HERO_COMBAT = {"crit": 10, "hit": 100, "dodge": 0}
+# Heroes have no crit/hit/dodge columns in character_detail, so 10% crit and 100 hit
+# are the server's baseline; gear adds to them.
+HERO_COMBAT = {"crit": 10, "hit": 100, "dodge": 0, "subhurt": 0}
 ELEMENTS = ("fire", "water", "wind", "earth")
+WORLD_REWARD_COUNTER = "world_rewards"   # bitmask of claimed integration_world levels
 
 
 @dataclass(frozen=True)
@@ -154,6 +159,26 @@ def _reached_cities(svc: Services, level: int) -> list:
     return [city for city in _cities_in_order(svc) if open_level.get(city, 1) <= level]
 
 
+def _world_rows(svc: Services) -> dict:
+    return {int(key): row for key, row in svc.configs.get("integration_world").items()
+            if key.isdigit() and isinstance(row, dict)}
+
+
+def _world_progress(svc: Services, uid: str) -> tuple:
+    """(score, level, claimed levels). A cleared building is one recovery point.
+
+    The original rule is not in the client; the five integration_world tiers end at
+    3127 and the normal campaign has 3274 attackable buildings, so the cleared-building
+    count is the only config-derived quantity that fits the published thresholds.
+    The level is the next unclaimed tier, capped at the last one."""
+    rows = _world_rows(svc)
+    mask = svc.store.counter(uid, WORLD_REWARD_COUNTER)
+    claimed = [level for level in sorted(rows) if mask >> (level - 1) & 1]
+    score = len(svc.store.cleared_buildings(uid))
+    level = min(len(rows), len(claimed) + 1) if rows else 1
+    return score, level, claimed
+
+
 def _land(plan: CityPlan, cleared) -> list:
     target = _target(plan.buildings, cleared)
     rows = [[list(EMPTY_CELL) for _ in range(plan.width)] for _ in range(plan.height)]
@@ -185,13 +210,14 @@ def world_map(req: Request, svc: Services, player: dict):
     # The city the map opens on and marks: the first normal one not fully recovered.
     normal = [city for city in regain if city in _normal_cities(svc)]
     last = next((city for city in normal if regain[city] < 100), normal[-1] if normal else "100")
+    score, level, _ = _world_progress(svc, player["uid"])
     return ok({
         "last_chapter": _chapter(svc, last), "last_city": last,
         "hard_last_chapter": "0", "hard_last_city": "0",
         "hard_last_attack": {"chapter": 1},  # read unguarded by map_world_scene
         "buy_hard_times": 0, "hard_done_times": 0, "hard_max_times": 3,
         "all_city_regain_percent": regain,
-        "world_level": 1, "world_score": 0,
+        "world_level": level, "world_score": score,
     })
 
 
@@ -202,12 +228,47 @@ def city_open(req: Request, svc: Services, player: dict):
     plan = _city_plan(svc, city)
     cleared = svc.store.cleared_buildings(player["uid"])
     steps = svc.store.building_steps(player["uid"])
+    score, level, _ = _world_progress(svc, player["uid"])
     return ok({
         "city": city, "land": _land(plan, cleared),
         "curt_regain": _regain(plan.buildings, cleared),
         # building -> 0-based steps already won; the client resumes at len(list)
         "recapture_log": {str(b): list(range(n)) for b, n in steps.items() if b in plan.buildings},
-        "world_level": 1, "world_score": 0,
+        "world_level": level, "world_score": score,
+    })
+
+
+def world_score(req: Request, svc: Services, player: dict):
+    score, level, claimed = _world_progress(svc, player["uid"])
+    return ok({"world_level": level, "world_score": score, "world_reward_log": claimed})
+
+
+def get_world_reward(req: Request, svc: Services, player: dict):
+    """Claim the next integration_world tier. Rewards the equipment system does not
+    exist for yet (type 7) are skipped by Loot, as everywhere else."""
+    uid, now = player["uid"], int(time.time())
+    level = req.params.get("level", "")
+    rows = _world_rows(svc)
+    if not is_int(level) or int(level) not in rows:
+        return fail("error_param", "Cấp thưởng không hợp lệ.")
+    level = int(level)
+    score, _, claimed = _world_progress(svc, uid)
+    if level != len(claimed) + 1:
+        return fail("error_level", "Chưa thể nhận thưởng này.")
+    if score < rows[level].get("top", 0):
+        return fail("error_score", "Chưa đủ điểm thu hồi.")
+    loot = Loot.of(rows[level].get("reward", []))
+    with svc.store.transaction():
+        granted = grant(svc, uid, loot, now)
+        mask = svc.store.counter(uid, WORLD_REWARD_COUNTER) | (1 << (level - 1))
+        svc.store.set_counter(uid, WORLD_REWARD_COUNTER, mask)
+    claimed = claimed + [level]
+    return ok({
+        "world_level": min(len(rows), len(claimed) + 1),
+        "world_score": score,
+        "world_reward_log": claimed,
+        "reward": granted.reward,
+        "_client_cache_update": granted.cache,
     })
 
 
@@ -216,15 +277,28 @@ def _enemy(svc: Services, city: str, enemy_id) -> dict:
     A few buildings borrow another city's fight (194011 fights 199022, whose enemies are
     in enemy_soldier_199), so the city in the enemy id (<city><3 digits>) comes second."""
     key = str(enemy_id)
-    for table in (f"enemy_soldier_{city}", f"enemy_soldier_{key[:-3]}"):
+    for table in (f"enemy_soldier_{city}", f"enemy_soldier_{key[:-3]}", "enemy_detail"):
         if enemy := svc.configs.get(table).get(key):
-            return enemy
-    return svc.configs.get("enemy_detail")[key]
+            return Difficulty.load(svc.configs).harden(city, key, enemy)
+    raise KeyError(key)
 
 
-def _enemy_ids(fight: dict) -> list:
-    """(slot 1-5, enemy id) for each occupied front-row position."""
-    return [(i, ids[0]) for i in range(1, 6) if (ids := fight.get(f"position{i}"))]
+def _enemy_ids(fight: dict, rng=None) -> list:
+    """(slot 1-5, enemy id) for each occupied front-row position.
+
+    Activity fights give some slots a weighted pool `[[enemy id, weight], ...]`. The client
+    draws a pool as an unknown silhouette, so a preview (no `rng`) leaves it out and a battle
+    draws one candidate."""
+    slots = []
+    for i in range(1, 6):
+        if not (ids := fight.get(f"position{i}")):
+            continue
+        if isinstance(ids[0], list):
+            if rng is None:
+                continue
+            ids = rng.choices([c[0] for c in ids], weights=[c[1] for c in ids])
+        slots.append((i, ids[0]))
+    return slots
 
 
 def map_fight_and_enemy(req: Request, svc: Services, player: dict):
@@ -264,21 +338,14 @@ def recapture(req: Request, svc: Services, player: dict):
 
     fight = svc.configs.get("map_fight")[str(fights[step][1])]
     attackers, defenders = _attackers(svc, uid, player["level"]), _defenders(svc, city, fight)
-    formation = current_formation(svc, uid)
-    winer, frames = _fight(svc, attackers, defenders, fight, formation)
-    won, last_step = winer == WIN, step == len(fights) - 1
-    data = {
-        "has_battled": 1,  # the client does nothing unless this is exactly 1
+    data = run_battle(svc, uid, player, attackers, defenders, fight)
+    won, last_step = data["battle"]["winer"] == WIN, step == len(fights) - 1
+    data.update({
         "city": city, "building": str(building_id),
         "next_step": (-1 if last_step else step + 1) if won else step,
         "is_recaptured": won and last_step,
         "reward": {},
-        "battle": {
-            "winer": winer,
-            "init": _battle_init(player, attackers, defenders, fight, formation),
-            "battle": {str(i): frame for i, frame in enumerate(frames, start=1)},
-        },
-    }
+    })
     if won:
         data.update(_victory(svc, uid, building_id, detail, fight, attackers, last_step, step, now))
     data["curt_regain"] = _regain(plan.buildings, svc.store.cleared_buildings(uid))
@@ -287,12 +354,8 @@ def recapture(req: Request, svc: Services, player: dict):
 
 def _victory(svc, uid, building_id, detail, fight, attackers, last_step, step, now) -> dict:
     """Experience for the player and every attacking card; building loot on the last step."""
-    rules = Rules.load(svc.configs)
     with svc.store.transaction():
-        old_exp = svc.store.state(uid, now)["exp"]
-        level = gain_exp(svc, uid, fight.get("reward_exp_role", 0), now)
-        card_exp, cards = _card_exp(svc, rules, uid, attackers, fight.get("reward_exp_character", 0),
-                                    level.level)
+        rewards, cards = battle_exp(svc, uid, fight, attackers, now)
         granted = None
         if last_step:
             first = svc.store.mark_cleared(uid, building_id)
@@ -302,17 +365,25 @@ def _victory(svc, uid, building_id, detail, fight, attackers, last_step, step, n
             # Replaying an earlier step never moves the building's progress back.
             won = svc.store.building_steps(uid).get(building_id, 0)
             svc.store.set_building_steps(uid, building_id, max(won, step + 1))
-    rewards = {
-        "reward_exp_player": [level.gained, old_exp, level.steps],
-        "reward_exp_character": card_exp,
-        "reward_character": [{"c_id": str(c["c_id"])} for c in _new_cards(svc, uid, granted)],
-    }
+    rewards["reward_character"] = [{"c_id": str(c["c_id"])} for c in _new_cards(svc, uid, granted)]
     cache = client_cache(svc, uid, cards=cards)
     return {
         "battle_rewards": rewards,
         "reward": granted.reward if granted else {},
         "_client_cache_update": merge_cache(cache, granted.cache) if granted else cache,
     }
+
+
+def battle_exp(svc, uid, fight: dict, attackers: list, now: int):
+    """Experience of a won fight for the player and every attacking card.
+    Returns the result screen's `battle_rewards` (without `reward_character`) and the
+    changed card ids."""
+    old_exp = svc.store.state(uid, now)["exp"]
+    level = gain_exp(svc, uid, fight.get("reward_exp_role", 0), now)
+    card_exp, cards = _card_exp(svc, Rules.load(svc.configs), uid, attackers,
+                                fight.get("reward_exp_character", 0), level.level)
+    return {"reward_exp_player": [level.gained, old_exp, level.steps],
+            "reward_exp_character": card_exp}, cards
 
 
 def _card_exp(svc, rules, uid, attackers, amount, player_level):
@@ -351,17 +422,46 @@ def _new_cards(svc, uid, granted) -> list:
 
 # ---- battle ----------------------------------------------------------------
 
+def run_battle(svc: Services, uid: str, player: dict, attackers: list, defenders: list,
+               fight: dict) -> dict:
+    """Play a fight with the player's formation and leader skills; the battle record the
+    battle scene replays (`has_battled` is the one flag the client checks, exactly 1)."""
+    formation, leaders = current_formation(svc, uid), _leader_skills(svc, uid)
+    winer, frames = _fight(svc, attackers, defenders, fight, formation, leaders)
+    return {
+        "has_battled": 1,
+        "battle": {
+            "winer": winer,
+            "init": _battle_init(player, attackers, defenders, fight, formation, leaders),
+            "battle": {str(i): frame for i, frame in enumerate(frames, start=1)},
+        },
+    }
+
+
 def _attackers(svc: Services, uid: str, player_level: int) -> list:
     rules = Rules.load(svc.configs)
     book = SkillBook.load(svc.configs)
+    by_id = {e["id"]: e for e in svc.store.equipment_rows(uid)}
+    equipped = {}
+    for position, _, equip_id in svc.store.equipment_positions(uid):
+        equipped.setdefault(position, []).append(equip_id)
+    jewels = gems.keys_by_position(svc.store.gem_positions(uid))
     units = []
     for card in formation_cards(svc.store.cards_for_player(uid)):
         character = rules.characters[str(card["c_id"])]
-        doc = rules.card_document(card, player_level)
+        doc = equipment.with_bonus(
+            rules.card_document(card, player_level),
+            gems.add_stats(equipment.bonus(svc.configs, equipped.get(card["slot"], []), by_id),
+                           gems.bonus(svc.configs, jewels.get(card["slot"], []))))
         units.append({
             "pos": card["slot"], "card_id": str(card["c_id"]), "id": f"x_{card['id']}",
             "lv": doc["lv"], "hp": doc["hp"], "patk": doc["patk"], "matk": doc["matk"],
-            "def": doc["def"], "speed": doc["speed"], **HERO_COMBAT,
+            "def": doc["def"], "speed": doc["speed"],
+            **{stat: HERO_COMBAT[stat] + doc.get(stat, 0)
+               for stat in ("crit", "hit", "dodge")},
+            "subhurt": doc.get("subhurt", 0),
+            "elements": {e: doc.get(e, 0) for e in ELEMENTS},
+            "element_def": {f"{e}_dfs": doc.get(f"{e}_dfs", 0) for e in ELEMENTS},
             "animation": character.get("animation", ""), "race": character.get("race", -1),
             "skills": _card_skills(book, doc),
         })
@@ -369,9 +469,9 @@ def _attackers(svc: Services, uid: str, player_level: int) -> list:
 
 
 def _card_skills(book: SkillBook, doc: dict) -> list:
-    """(slot, Skill) for each active skill of a card document."""
+    """(slot, Skill) for the three skill slots the card brings to a battle."""
     skills = []
-    for slot in range(1, 8):
+    for slot in range(1, SKILL_SLOTS + 1):
         entry = doc.get(f"s_{slot}")
         if entry and entry["s"] and entry["avail"] == ACTIVE:
             skill = book.skill(entry["s"], entry["lv"])
@@ -380,37 +480,68 @@ def _card_skills(book: SkillBook, doc: dict) -> list:
     return skills
 
 
-def _defenders(svc: Services, city: str, fight: dict) -> list:
+def _defenders(svc: Services, city: str, fight: dict, rng=None) -> list:
+    book = SkillBook.load(svc.configs)
     units = []
-    for slot, enemy_id in _enemy_ids(fight):
+    for slot, enemy_id in _enemy_ids(fight, rng):
         enemy = _enemy(svc, city, enemy_id)
         units.append({
             "pos": 99 + slot, "card_id": str(enemy_id), "id": f"e_{slot}",
             "lv": enemy["lv"], "hp": enemy["hp"], "patk": enemy["patk"],
             "matk": enemy.get("matk", 0), "def": enemy["def"], "speed": enemy["speed"],
             "crit": enemy.get("crit", 0), "hit": enemy.get("hr", 100), "dodge": enemy.get("dr", 0),
+            "subhurt": enemy.get("subhurt", 0),
             "boss": enemy.get("is_boss", 0) == 1, "race": enemy.get("race", -1),
             "elements": {e: enemy.get(e, 0) for e in ELEMENTS},
             "element_def": {e: enemy.get(f"{e}_dfs", 0) for e in ELEMENTS},
             "animation": enemy["animation"],
             "rgb_sort": enemy.get("rgb_sort", 0), "name": enemy.get("enemy_name", ""),
+            "skills": _enemy_skills(book, enemy),
         })
     return units
 
 
-def _fight(svc: Services, attackers: list, defenders: list, fight: dict, formation: int):
-    """Run the battle with hero skills; enemies fight with normal attacks.
+def _enemy_skills(book: SkillBook, enemy: dict) -> list:
+    """(slot, Skill) for each skill1..3 an enemy config carries (`[id, level]`)."""
+    skills = []
+    for slot in range(1, 4):
+        entry = enemy.get(f"skill{slot}") or []
+        if entry and entry[0]:
+            skill = book.skill(int(entry[0]), int(entry[1]) if len(entry) > 1 else 1)
+            if skill is not None:
+                skills.append((slot, skill))
+    return skills
+
+
+def _leader_skills(svc: Services, uid: str) -> list:
+    """The equipped leader skills of the player, at their learned levels."""
+    book = LeaderBook.load(svc.configs)
+    levels, slots = svc.store.leader_skills(uid)
+    leaders = []
+    for skill_id in slots:
+        skill = book.get(skill_id) if skill_id else None
+        if skill is not None and levels.get(skill_id):
+            leaders.append(skill.at_level(levels[skill_id]))
+    return leaders
+
+
+def _fight(svc: Services, attackers: list, defenders: list, fight: dict, formation: int,
+           leaders=()):
+    """Run the battle with hero and enemy skills; the player's leader skills fire on rage.
     The attackers stand in the player's chosen formation layout."""
     book = SkillBook.load(svc.configs)
     formations = svc.configs.get("formation")
     layouts = tuple(formation_layout(formations.get(str(f), {}))
                     for f in (formation, fight.get("formation_id", 1)))
     return simulate(attackers, defenders, rng=random.Random(), layouts=layouts,
-                    script=lambda unit, skill, slot: book.script(unit.animation, skill, slot))
+                    script=lambda unit, skill, slot: book.script(unit.animation, skill, slot),
+                    leaders=leaders)
 
 
 def _battle_init(player: dict, attackers: list, defenders: list, fight: dict,
-                 formation: int) -> dict:
+                 formation: int, leaders=()) -> dict:
+    # The battle scene reads exactly three leader ids per side and both role ids.
+    atk_skill = [skill.id for skill in leaders][:3] + [0] * (3 - len(leaders))
     atk, dfd = [0] * 10, [0] * 10
     for u in attackers:
         atk[u["pos"]] = {k: u[k] for k in ("card_id", "id", "hp", "lv", "speed")}
@@ -420,7 +551,9 @@ def _battle_init(player: dict, attackers: list, defenders: list, fight: dict,
                                ("card_id", "id", "hp", "lv", "speed", "animation", "rgb_sort")}
     return {
         "aform": formation, "dform": fight.get("formation_id", 1),
-        "atk_skill": [0, 0, 0], "dfd_skill": [0, 0, 0],
+        "atk_skill": atk_skill, "dfd_skill": [0, 0, 0],
+        # role_detail 1 is the main hero; the enemy side shows no leader.
+        "atk_role": 1, "dfd_role": 0,
         "card_att": {}, "card_def": {},
         "atk": atk, "dfd": dfd,
         "atk_name": player["name"], "atk_lv": player["level"],
@@ -434,4 +567,6 @@ HANDLERS = {
     ("api", "private_city.open"): city_open,
     ("api", "private_city.map_fight_and_enemy"): map_fight_and_enemy,
     ("api", "private_city.recapture"): recapture,
+    ("api", "private_city.world_score"): world_score,
+    ("api", "private_city.get_world_reward"): get_world_reward,
 }
