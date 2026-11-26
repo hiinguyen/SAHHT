@@ -9,8 +9,8 @@
   },
   "arena": {
    "phase": 6,
-   "open": false,
-   "reason": "đấu trường: game_ui/game_arena.lua, game_ui/game_pk.lua; lộ trình giai đoạn 6"
+   "open": true,
+   "reason": "đấu trường và bảng xếp hạng: game_ui/game_arena.lua, game_ui/game_new_rank.lua (arena.py, ranking.py)"
   },
   "association": {
    "phase": 6,
@@ -733,7 +733,12 @@
    "reason": "ngoài phạm vi 2018: cung hoàng đạo thuộc thần giới (game_pop/game_godfield_Star_zhenxing.lua), liên server"
   }
  },
- "quiet": {},
+ "quiet": {
+  "association.guild_all": {
+   "body": {"guild_list": []},
+   "evidence": "tab 4 của game_new_rank.lua đọc data.guild_list; bang hội chưa mở, bảng để trống"
+  }
+ },
  "views": {
   "1": {
    "open": false,
@@ -816,8 +821,8 @@
    "reason": "Cải tạo thuộc tính (menu game_function_pop.lua); giai đoạn 5"
   },
   "21": {
-   "open": false,
-   "reason": "Đổi đồng đội (menu game_function_pop.lua): cần item.view, chưa có handler; giai đoạn 1"
+   "module": "item",
+   "reason": "Đổi đồng đội (menu game_function_pop.lua, tag 100002): item.view, item.exchange (exchange.py)"
   },
   "22": {
    "module": "equip",
@@ -835,8 +840,8 @@
    "module": "equip"
   },
   "26": {
-   "open": false,
-   "reason": "Đổi trang bị (menu game_function_pop.lua): cần item.view, chưa có handler; giai đoạn 1"
+   "module": "item",
+   "reason": "Đổi trang bị (menu game_function_pop.lua, tag 508): item.view, item.exchange (exchange.py)"
   },
   "27": {
    "module": "friend",

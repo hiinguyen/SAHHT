@@ -348,8 +348,11 @@ def main_alerts(svc: Services, uid: str) -> dict:
 
 
 def user_main_page(req: Request, svc: Services, player: dict):
+    arena_row = svc.store.arena_row(player["uid"])
     return ok({
-        "arena_rank": 1, "arena_point": 0, "buy_ap_times": 0,
+        "arena_rank": arena_row[0] if arena_row else 0,
+        "arena_point": svc.store.wallet(player["uid"]).get("arena_point", 0),
+        "buy_ap_times": 0,
         "combat": team_combat(svc, player["uid"]),  # getChangedCombat() does arithmetic on it
         "timezone": TIMEZONE, "alerts": main_alerts(svc, player["uid"]), "resource": {},
         "notices": [], "actives": {},

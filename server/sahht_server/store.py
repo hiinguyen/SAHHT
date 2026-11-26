@@ -226,11 +226,40 @@ CREATE INDEX IF NOT EXISTS mail_by_player ON mail(player_id, claimed_at);
 CREATE UNIQUE INDEX IF NOT EXISTS mail_once ON mail(player_id, mail_key) WHERE mail_key IS NOT NULL
 """
 
+# Arena: one ladder row per player (rank and when periodic points were last paid), the
+# battle log both sides read, and the replayed battle documents the log points at.
+_ARENA = """
+CREATE TABLE IF NOT EXISTS arena (
+    player_id INTEGER PRIMARY KEY REFERENCES players(id),
+    rank      INTEGER NOT NULL,
+    award_at  INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS arena_by_rank ON arena(rank);
+CREATE TABLE IF NOT EXISTS arena_log (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    player_id  INTEGER NOT NULL REFERENCES players(id),
+    attacker   TEXT NOT NULL,
+    defender   TEXT NOT NULL,
+    a_combat   INTEGER NOT NULL,
+    d_combat   INTEGER NOT NULL,
+    tp         TEXT NOT NULL,
+    is_win     INTEGER NOT NULL,
+    battle_log TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS arena_log_by_player ON arena_log(player_id, id);
+CREATE TABLE IF NOT EXISTS arena_replays (
+    key        TEXT PRIMARY KEY,
+    data       TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+);
+"""
+
 # Applied in order; PRAGMA user_version is how many are applied. Migration 1 is the
 # original schema (IF NOT EXISTS), so a database from before migrations is upgraded in
 # place. Never edit an applied migration: append a new one.
 MIGRATIONS = (_SCHEMA, _PAYMENTS, _CARD_LOCK, _EQUIPMENT, _EQUIPMENT_EXTRA, _BATTLE_SKILLS,
-              _LEADER_SKILLS, _GEMS, _ACTIVE_RUNS, _ELITE, _CARD_BREAK, _MAIL)
+              _LEADER_SKILLS, _GEMS, _ACTIVE_RUNS, _ELITE, _CARD_BREAK, _MAIL, _ARENA)
 
 
 def _statements(script: str) -> list[str]:
@@ -358,8 +387,9 @@ class Store:
             "SELECT id, account, server, name, level FROM players WHERE account = ?", (account,)))
 
     def players_overview(self) -> list[dict]:
-        """`{account, uid, level}` of every player, oldest first."""
-        return [{"account": r["account"], "uid": _player(r)["uid"], "level": r["level"]}
+        """`{account, uid, name, level}` of every player, oldest first."""
+        return [{"account": r["account"], "uid": _player(r)["uid"], "name": r["name"],
+                 "level": r["level"]}
                 for r in self._all("SELECT id, account, server, name, level FROM players "
                                    "ORDER BY id")]
 
@@ -739,6 +769,13 @@ class Store:
                 "ON CONFLICT(player_id, name) DO UPDATE SET period = excluded.period, value = excluded.value",
                 (_pid(uid), name, period, value))
 
+    def counters_with_prefix(self, uid: str, prefix: str, period: str = "") -> dict:
+        """Lifetime counters whose name starts with `prefix`, as name -> value."""
+        rows = self._all(
+            "SELECT name, value FROM counters WHERE player_id = ? AND period = ? "
+            "AND substr(name, 1, ?) = ?", (_pid(uid), period, len(prefix), prefix))
+        return {row["name"]: row["value"] for row in rows}
+
     # ---- elite attempts --------------------------------------------------------
 
     def elite_attempt(self, uid: str):
@@ -893,6 +930,71 @@ class Store:
                 "INSERT INTO building_steps(player_id, building_id, steps_won) VALUES (?, ?, ?) "
                 "ON CONFLICT(player_id, building_id) DO UPDATE SET steps_won = excluded.steps_won",
                 (_pid(uid), building_id, steps_won))
+
+    # ---- arena -------------------------------------------------------------------
+
+    def arena_row(self, uid: str):
+        """The player's (rank, award_at), or None until they first open the arena."""
+        row = self._one("SELECT rank, award_at FROM arena WHERE player_id = ?", (_pid(uid),))
+        return (row["rank"], row["award_at"]) if row else None
+
+    def create_arena_row(self, uid: str, rank: int, award_at: int) -> None:
+        with self.transaction():
+            self._db.execute("INSERT INTO arena(player_id, rank, award_at) VALUES (?, ?, ?)",
+                             (_pid(uid), rank, award_at))
+
+    def set_arena_rank(self, uid: str, rank: int) -> None:
+        with self.transaction():
+            self._db.execute("UPDATE arena SET rank = ? WHERE player_id = ?",
+                             (rank, _pid(uid)))
+
+    def set_arena_award_at(self, uid: str, award_at: int) -> None:
+        with self.transaction():
+            self._db.execute("UPDATE arena SET award_at = ? WHERE player_id = ?",
+                             (award_at, _pid(uid)))
+
+    def arena_max_rank(self) -> int:
+        row = self._one("SELECT MAX(rank) AS rank FROM arena")
+        return row["rank"] or 0
+
+    def arena_rows(self) -> list[dict]:
+        """Every ranked player with the name and level the client shows."""
+        return [dict(r) | {"uid": str(r["id"] + UID_OFFSET)} for r in self._all(
+            "SELECT p.id, p.name, p.level, a.rank FROM arena a "
+            "JOIN players p ON p.id = a.player_id ORDER BY a.rank")]
+
+    def arena_row_at(self, rank: int):
+        """The ranked player at `rank`, or None (the rank belongs to a bot)."""
+        row = self._one("SELECT p.id, p.name, p.level, a.rank FROM arena a "
+                        "JOIN players p ON p.id = a.player_id WHERE a.rank = ?", (rank,))
+        return dict(row) | {"uid": str(row["id"] + UID_OFFSET)} if row else None
+
+    def add_arena_log(self, uid: str, *, attacker: str, defender: str, a_combat: int,
+                      d_combat: int, tp: str, is_win: bool, battle_log: str, now: int) -> None:
+        with self.transaction():
+            self._db.execute(
+                "INSERT INTO arena_log(player_id, attacker, defender, a_combat, d_combat, "
+                "tp, is_win, battle_log, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (_pid(uid), attacker, defender, a_combat, d_combat, tp, int(is_win),
+                 battle_log, now))
+
+    def arena_log(self, uid: str, limit: int = 20) -> list[dict]:
+        return [dict(r) | {"is_win": bool(r["is_win"])} for r in self._all(
+            "SELECT attacker, defender, a_combat, d_combat, tp, is_win, battle_log "
+            "FROM arena_log WHERE player_id = ? ORDER BY id DESC LIMIT ?", (_pid(uid), limit))]
+
+    def add_arena_replay(self, key: str, data: dict, now: int) -> None:
+        with self.transaction():
+            self._db.execute("INSERT INTO arena_replays(key, data, created_at) VALUES (?, ?, ?)",
+                             (key, json.dumps(data), now))
+
+    def arena_replay(self, key: str):
+        row = self._one("SELECT data FROM arena_replays WHERE key = ?", (key,))
+        return json.loads(row["data"]) if row else None
+
+    def purge_arena_replays(self, before: int) -> None:
+        with self.transaction():
+            self._db.execute("DELETE FROM arena_replays WHERE created_at < ?", (before,))
 
     # ---- payments (free recharge) ------------------------------------------------
 

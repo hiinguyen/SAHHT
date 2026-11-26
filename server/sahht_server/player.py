@@ -28,6 +28,9 @@ GUIDE_CITY_REACHED, GUIDE_BUILDING_CLEARED = 4, 3   # guide_team.config open_sor
 # as soon as stage 1-1's building is cleared and the first tutorial is done, by finishing
 # the team outright: no tutorial overlay, and no wait for the chain to reach team 5.
 EVOLUTION_TEAM, EVOLUTION_BUILDING = "5", 100001
+# The arena button opens at guide team 4 step 401. The server skips that tutorial: the
+# feature is served, so the team is finished outright and the button is live.
+ARENA_TEAM = "4"
 
 # Currencies the client reads from user_status; balances come from the wallet.
 CURRENCIES = (
@@ -145,6 +148,13 @@ def _open_evolution(svc, uid: str, guide: dict, steps: dict) -> None:
         guide[EVOLUTION_TEAM] = last
 
 
+def _open_arena(svc, uid: str, guide: dict, steps: dict) -> None:
+    last = steps.get(ARENA_TEAM, (0, 0))[1]
+    if last and guide.get(ARENA_TEAM, 0) < last:
+        svc.store.advance_guide(uid, ARENA_TEAM, last)
+        guide[ARENA_TEAM] = last
+
+
 def seed_guides(svc, uid: str) -> None:
     """Start the next main tutorial team once the previous one is done and its
     guide_team.config condition (city reached, building cleared) holds."""
@@ -154,6 +164,7 @@ def seed_guides(svc, uid: str) -> None:
     rules, steps = svc.configs.get("guide_team"), guide_steps(svc)
     guide = svc.store.guide(uid)
     _open_evolution(svc, uid, guide, steps)
+    _open_arena(svc, uid, guide, steps)
     for previous, team in zip(GUIDE_CHAIN, GUIDE_CHAIN[1:]):
         rule = rules.get(team)
         if team in guide or rule is None or team not in steps or previous not in steps:
