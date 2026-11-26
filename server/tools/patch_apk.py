@@ -26,13 +26,6 @@ _MASK = 0xFFFFFFFF
 
 URL_RE = re.compile(r"^https?://[A-Za-z0-9.\-]+(:\d{1,5})?(/[A-Za-z0-9._~\-/]*)?$")
 URL_LINE_RE = re.compile(r'^(SERVER_LIST_URL_(NET|CN)\s*=\s*)"[^"\n]*"', re.MULTILINE)
-PLAYBACK_SPEEDUP = 1.5
-PLAYBACK_SPEED_OLD = "    action_rythm = 0.5,\n"
-PLAYBACK_SPEED_NEW = (
-    f"    action_rythm_normal = 0.5 / {PLAYBACK_SPEEDUP}, -- SAHHT: battle playback {PLAYBACK_SPEEDUP}x faster\n"
-    f"    action_rythm_fast = 0.1 / {PLAYBACK_SPEEDUP},\n"
-    "    action_rythm = 0.5 / %s,\n" % PLAYBACK_SPEEDUP
-)
 # Fixes to client Lua bugs that the server cannot work around: entry -> [(shipped text, replacement)].
 # Each shipped text must occur exactly once, so a changed client fails loudly instead of silently.
 CLIENT_FIXES = {
@@ -106,29 +99,7 @@ CLIENT_FIXES = {
          '        --[[--if(tempAnim ~= nil) then\n'),
         ('        elseif(tempFlag == "reenter")then\n',
          '        elseif(tempFlag == "reenter" and self:shhhtAnimTab(tempFrameData.param.src) ~= nil)then\n'),
-        # Playback speed (see the config entries below): the two speeds are named, never literals.
-        ('            public_config.action_rythm = 0.1;\n',
-         '            public_config.action_rythm = public_config.action_rythm_fast;\n'),
-        ('            if public_config.action_rythm == 0.1 then\n            --     local level',
-         '            if public_config.action_rythm == public_config.action_rythm_fast then\n            --     local level'),
-        ('                public_config.action_rythm = 0.5;\n',
-         '                public_config.action_rythm = public_config.action_rythm_normal;\n'),
-        ('    if public_config.action_rythm == 0.5 then\n        self.m_speed_btn:setVisible(true)',
-         '    if public_config.action_rythm == public_config.action_rythm_normal then\n        self.m_speed_btn:setVisible(true)'),
-        ('        if public_config.action_rythm == 0.1 then\n            game_util:setCCControlButtonBackground',
-         '        if public_config.action_rythm == public_config.action_rythm_fast then\n            game_util:setCCControlButtonBackground'),
     ],
-    # Battle playback runs 1.5x faster than shipped, both at normal speed and at x2. `action_rythm`
-    # scales every duration (animation rhythm, moves, waits), so a smaller value is faster; the
-    # shipped 0.5 (normal) and 0.1 (x2) become 0.5 / 1.5 and 0.1 / 1.5, named once in `public_config`.
-    "assets/lua/game_config.lua": [(PLAYBACK_SPEED_OLD, PLAYBACK_SPEED_NEW)],
-    "assets/lua/game_pop/game_config.lua": [(PLAYBACK_SPEED_OLD, PLAYBACK_SPEED_NEW)],
-    "assets/lua/game_ui/game_main_scene.lua": [
-        ("        public_config.action_rythm = 0.5\n",
-         "        public_config.action_rythm = public_config.action_rythm_normal\n")],
-    "assets/lua/game_ui/open_door_main_scene.lua": [
-        ("        public_config.action_rythm = 0.5\n",
-         "        public_config.action_rythm = public_config.action_rythm_normal\n")],
     "assets/lua/game_ui/game_pop_up_box.lua": [
         ('    local m_anim_node = ccbNode:nodeForName("m_anim_node");\n',
          '    if tableParams.onBuild then tableParams.onBuild(m_text_label:getParent(), m_text_label) end -- SAHHT\n'

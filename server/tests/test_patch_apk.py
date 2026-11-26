@@ -107,11 +107,6 @@ BATTLE_LUA = (
     '            else\n'
     '                self:setCanGo(true,"dengchang anim")\n'
     '            end\n'
-    '            public_config.action_rythm = 0.1;\n'
-    '            if public_config.action_rythm == 0.1 then\n            --     local level\n'
-    '                public_config.action_rythm = 0.5;\n'
-    '    if public_config.action_rythm == 0.5 then\n        self.m_speed_btn:setVisible(true)\n'
-    '        if public_config.action_rythm == 0.1 then\n            game_util:setCCControlButtonBackground\n'
 )
 
 
@@ -140,27 +135,6 @@ class ReenterUnlockTests(unittest.TestCase):
         shipped = patch_apk.decrypt(zipfile.ZipFile(APK).read(BATTLE_ENTRY), b"aaa").decode()
         out = patch_apk.apply_client_fixes(BATTLE_ENTRY, shipped)
         self.assertIn("m_shhhtReenterUnlock", out)
-
-
-class PlaybackSpeedTests(unittest.TestCase):
-    ENTRIES = ("assets/lua/game_config.lua", "assets/lua/game_pop/game_config.lua",
-               "assets/lua/game_ui/game_main_scene.lua", "assets/lua/game_ui/open_door_main_scene.lua",
-               BATTLE_ENTRY)
-
-    def test_config_names_both_speeds_and_starts_at_the_faster_normal(self):
-        out = patch_apk.apply_client_fixes("assets/lua/game_config.lua", "    action_rythm = 0.5,\n")
-        self.assertIn("action_rythm_normal = 0.5 / 1.5", out)
-        self.assertIn("action_rythm_fast = 0.1 / 1.5", out)
-        self.assertIn("    action_rythm = 0.5 / 1.5,", out)
-
-    @unittest.skipUnless(APK.is_file(), "original APK not present")
-    def test_no_shipped_speed_literal_is_left_in_the_screens(self):
-        with zipfile.ZipFile(APK) as z:
-            for entry in self.ENTRIES:
-                out = patch_apk.apply_client_fixes(entry, patch_apk.decrypt(z.read(entry), b"aaa").decode())
-                for line in out.splitlines():
-                    code = line.split("--")[0]
-                    self.assertNotRegex(code, r"action_rythm\s*(==|=)\s*0\.[15]\b(?!\s*/)", (entry, line))
 
 
 class ApkRewriteTests(unittest.TestCase):
