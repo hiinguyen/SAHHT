@@ -3,7 +3,7 @@
 import unittest
 from unittest import mock
 
-from sahht_server import (equipment, equipment_actions, equipment_enchant, equipment_fate,
+from sahht_server import (cards, equipment, equipment_actions, equipment_enchant, equipment_fate,
                           equipment_forge, equipment_refine, equipment_split)
 from sahht_server.handlers import Refused
 from sahht_server.rewards import Loot, grant
@@ -808,6 +808,16 @@ class HeroTests(PlayerCase):
         self.assertEqual((card["evo"], card["step"]), (1, 1))
         self.assertEqual(card["patk"] - 200 - 14 * (card["lv"] - 1), 10)  # evolution type0 bonus
         self.assertEqual(body["user_status"]["food"], 10000 + 100 - 400)
+
+    def test_evolution_accepts_universal_cards_with_string_character_ids(self):
+        # character_detail.config stores character_ID as a string ("1001" is the orange card).
+        characters = {"100": {"character_ID": "7"}, "200": {"character_ID": "8"},
+                      "51": {"character_ID": "1001"}, "53": {"character_ID": "1003"}}
+        rules = mock.Mock(characters=characters)
+        major = {"c_id": 100}
+        self.assertTrue(cards._evolution_material(rules, major, {"c_id": 51}))
+        self.assertTrue(cards._evolution_material(rules, major, {"c_id": 53}))
+        self.assertFalse(cards._evolution_material(rules, major, {"c_id": 200}))
 
     def test_selling_gives_food_and_refuses_team_cards(self):
         spare = self.recruit()[0]

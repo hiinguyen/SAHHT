@@ -264,8 +264,9 @@ def skill_levelup(req: Request, svc: Services, player: dict):
 
 def _evolution_material(rules: Rules, major: dict, metal: dict) -> bool:
     """Same hero line, or one of the universal evolution cards."""
-    mine = rules.characters[str(major["c_id"])].get("character_ID")
-    theirs = rules.characters[str(metal["c_id"])].get("character_ID")
+    # The configs store character_ID as a string ("1001"), the universal range is numeric.
+    mine = int(rules.characters[str(major["c_id"])].get("character_ID"))
+    theirs = int(rules.characters[str(metal["c_id"])].get("character_ID"))
     return theirs == mine or theirs in UNIVERSAL_MATERIALS
 
 
