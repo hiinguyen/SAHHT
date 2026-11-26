@@ -46,6 +46,7 @@ CLIENT_FIXES = {
         ('            local tempAnim = game_util:createEffectAnimCallBack("buff_huisu",1.0,false,function ()\n'
          '                self:setCanGo(true,"reenter");\n'
          '            end);\n',
+         '            enemy_object_tab.deathRef = 1 -- SAHHT fix: alive again, a later death starts clean\n'
          '            local shhhtUnlock = function ()\n'
          '                if self.m_shhhtReenterUnlock ~= nil then\n'
          '                    self.m_shhhtReenterUnlock = nil -- SAHHT fix: one unlock per reenter frame\n'
@@ -62,6 +63,42 @@ CLIENT_FIXES = {
          '                else\n'
          '                    self:setCanGo(true,"dengchang anim")\n'
          '                end\n'),
+        # A unit that dies and revives: on fast playback its `siwang` section can end before the `death`
+        # frame is played, so that frame's `objectDead` removed the sprite and the `reenter` frame
+        # found none (nil `enemy_object_tab`): a Lua error that left `m_canGo` locked, a frozen fight.
+        # A death followed by the unit's own `reenter` now keeps the sprite, and a `reenter` without
+        # a sprite falls through to the generic unlock instead of failing.
+        ('function game_battle_scene:start()\n',
+         '-- SAHHT: the animation table of a unit, as the reenter frame looks it up\n'
+         'function game_battle_scene.shhhtAnimTab(self,id)\n'
+         '    local tab = self.m_animCounter[tostring(id)]\n'
+         '    if tab ~= nil then return tab end\n'
+         '    if id < 6 then return self.m_AtkAnims[id + 1] end\n'
+         '    return self.m_DfdAnims[id - 99]\n'
+         'end\n'
+         '\n'
+         'local shhhtReviveStop = {sort = true,attack_over = true,sbt = true,pre_battle = true,attack = true,next = true}\n'
+         '-- SAHHT: does the cast that killed this unit end with its own reenter frame?\n'
+         'function game_battle_scene.shhhtReviveAhead(self,frameId,id)\n'
+         '    for j = frameId + 1,frameId + 16 do\n'
+         '        local f = self.m_BattleData[tostring(j)]\n'
+         '        if f == nil or shhhtReviveStop[f.flag] then return false end\n'
+         '        if f.flag == "reenter" and f.param.src == id then return true end\n'
+         '    end\n'
+         '    return false\n'
+         'end\n'
+         '\n'
+         'function game_battle_scene:start()\n'),
+        ('        self:objectDead(tempid)\n'
+         '        --[[--if(tempAnim ~= nil) then\n',
+         '        if self:shhhtReviveAhead(frameId,tempid) then\n'
+         '            if tempAnim then tempAnim.deathRef = 2 end -- SAHHT fix: keep the sprite, the unit comes back\n'
+         '        else\n'
+         '            self:objectDead(tempid)\n'
+         '        end\n'
+         '        --[[--if(tempAnim ~= nil) then\n'),
+        ('        elseif(tempFlag == "reenter")then\n',
+         '        elseif(tempFlag == "reenter" and self:shhhtAnimTab(tempFrameData.param.src) ~= nil)then\n'),
     ],
     "assets/lua/game_ui/game_pop_up_box.lua": [
         ('    local m_anim_node = ccbNode:nodeForName("m_anim_node");\n',

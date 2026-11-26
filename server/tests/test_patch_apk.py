@@ -97,6 +97,10 @@ class ClientFixTests(unittest.TestCase):
 
 BATTLE_ENTRY = "assets/lua/game_ui/game_battle_scene.lua"
 BATTLE_LUA = (
+    'function game_battle_scene:start()\n'
+    '        self:objectDead(tempid)\n'
+    '        --[[--if(tempAnim ~= nil) then\n'
+    '        elseif(tempFlag == "reenter")then\n'
     '            local tempAnim = game_util:createEffectAnimCallBack("buff_huisu",1.0,false,function ()\n'
     '                self:setCanGo(true,"reenter");\n'
     '            end);\n'
@@ -112,6 +116,15 @@ class ReenterUnlockTests(unittest.TestCase):
         self.assertIn('"buff_huisu",1.0,false,shhhtUnlock)', out)
         self.assertEqual(out.count('self:setCanGo(true,"reenter")'), 1)
         self.assertIn("self.m_shhhtReenterUnlock()", out)
+
+    def test_a_unit_that_revives_keeps_its_sprite_when_it_dies(self):
+        out = patch_apk.apply_client_fixes(BATTLE_ENTRY, BATTLE_LUA)
+        self.assertIn("self:shhhtReviveAhead(frameId,tempid)", out)
+        self.assertIn("function game_battle_scene.shhhtReviveAhead", out)
+
+    def test_a_revive_frame_without_a_sprite_unlocks_playback_instead_of_failing(self):
+        out = patch_apk.apply_client_fixes(BATTLE_ENTRY, BATTLE_LUA)
+        self.assertIn('elseif(tempFlag == "reenter" and self:shhhtAnimTab(tempFrameData.param.src) ~= nil)then', out)
 
     def test_fails_when_the_shipped_battle_scene_has_changed(self):
         with self.assertRaises(ValueError):
