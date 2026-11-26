@@ -821,8 +821,8 @@
    "reason": "Cải tạo thuộc tính (menu game_function_pop.lua); giai đoạn 5"
   },
   "21": {
-   "open": false,
-   "reason": "Đổi đồng đội (menu game_function_pop.lua): cần item.view, chưa có handler; giai đoạn 1"
+   "module": "item",
+   "reason": "Đổi đồng đội (menu game_function_pop.lua, tag 100002): item.view, item.exchange (exchange.py)"
   },
   "22": {
    "module": "equip",
@@ -840,8 +840,8 @@
    "module": "equip"
   },
   "26": {
-   "open": false,
-   "reason": "Đổi trang bị (menu game_function_pop.lua): cần item.view, chưa có handler; giai đoạn 1"
+   "module": "item",
+   "reason": "Đổi trang bị (menu game_function_pop.lua, tag 508): item.view, item.exchange (exchange.py)"
   },
   "27": {
    "module": "friend",

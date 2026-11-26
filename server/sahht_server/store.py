@@ -769,6 +769,13 @@ class Store:
                 "ON CONFLICT(player_id, name) DO UPDATE SET period = excluded.period, value = excluded.value",
                 (_pid(uid), name, period, value))
 
+    def counters_with_prefix(self, uid: str, prefix: str, period: str = "") -> dict:
+        """Lifetime counters whose name starts with `prefix`, as name -> value."""
+        rows = self._all(
+            "SELECT name, value FROM counters WHERE player_id = ? AND period = ? "
+            "AND substr(name, 1, ?) = ?", (_pid(uid), period, len(prefix), prefix))
+        return {row["name"]: row["value"] for row in rows}
+
     # ---- elite attempts --------------------------------------------------------
 
     def elite_attempt(self, uid: str):
