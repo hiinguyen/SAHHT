@@ -5,10 +5,11 @@
 
 `export` packs every part PNG of `characters/<name>/` onto grid sheets (flat
 grey background, parts enlarged to help the AI) and writes `manifest.json`.
-`import` reads the redrawn sheets from `<kit>/redrawn/` (same file names and
-same pixel size), cuts each cell, shrinks it to the part's original size and
-keeps the ORIGINAL alpha, so a redraw that bleeds outside the shape is clipped
-back to the silhouette and every animation keeps working.
+`import` reads the redrawn sheets from `<kit>/redrawn/` (same stem, any image
+type and size, same grid), cuts each part out of its cell and fits it into the
+opaque box of the old part, centred on it, so sizes and pivots keep the
+animation working. The output folder holds every original part with the
+redrawn ones replaced, ready for `tools.sam_render --parts`.
 """
 
 import argparse
@@ -17,7 +18,7 @@ import re
 import sys
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 from tools import sam, sam_render
 
@@ -125,37 +126,160 @@ def export(name: str, out: Path, parts_dir: Path = None, group: str = "body"):
     return entries
 
 
-def _remove_background(rgb: Image.Image, alpha: Image.Image) -> Image.Image:
-    """Undo the grey the sheet blended into soft edges, then apply the original alpha."""
-    pixels = []
-    for (r, g, b), a in zip(rgb.getdata(), alpha.getdata()):
-        if 0 < a < 255:
-            k = a / 255
-            r, g, b = (max(0, min(255, round((c - (1 - k) * bg) / k))) for c, bg in zip((r, g, b), BACKGROUND))
-        pixels.append((r, g, b, a))
-    out = Image.new("RGBA", rgb.size)
-    out.putdata(pixels)
-    return out
+MARKER = (255, 0, 255)
+BACKGROUND_TOLERANCE = 45     # summed per-channel distance from the sheet's background colour
+BORDER_STEP = 6
+MIN_PART_AREA = 150           # smaller blobs are specks or a watermark, not parts
+JOIN_DISTANCE = 24            # a small blob this close to a part belongs to it (antenna, glove tips)
+
+
+def _border_points(width: int, height: int):
+    for x in range(0, width, BORDER_STEP):
+        yield x, 0
+        yield x, height - 1
+    for y in range(0, height, BORDER_STEP):
+        yield 0, y
+        yield width - 1, y
+
+
+def _foreground(sheet: Image.Image) -> Image.Image:
+    """Mask (255 = part) of everything that is not the flat background around the parts.
+
+    The background is found by flood fill from the sheet border, so light pixels inside a
+    part's outline are kept."""
+    sheet = sheet.convert("RGB")
+    marked = sheet.copy()
+    reference = marked.copy()
+    for point in _border_points(*sheet.size):
+        seed = reference.getpixel(point)
+        if marked.getpixel(point) != MARKER and sum(abs(c - b) for c, b in zip(seed, BACKGROUND)) <= 90:
+            ImageDraw.floodfill(marked, point, MARKER, thresh=BACKGROUND_TOLERANCE)
+    red, green, blue = marked.split()
+    is_background = ImageChops.multiply(ImageChops.multiply(
+        red.point(lambda v: 255 if v == 255 else 0),
+        green.point(lambda v: 255 if v == 0 else 0)), blue.point(lambda v: 255 if v == 255 else 0))
+    return ImageChops.invert(is_background).filter(ImageFilter.MinFilter(3))
+
+
+def _blobs(mask: Image.Image):
+    """Connected blobs of a mask as dicts with their pixel indexes, area and bounding box."""
+    width, height = mask.size
+    data = mask.tobytes()
+    seen = bytearray(len(data))
+    blobs = []
+    for start in range(len(data)):
+        if not data[start] or seen[start]:
+            continue
+        stack, pixels = [start], []
+        seen[start] = 1
+        while stack:
+            index = stack.pop()
+            pixels.append(index)
+            x, y = index % width, index // width
+            for nx, ny in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)):
+                if 0 <= nx < width and 0 <= ny < height:
+                    neighbour = ny * width + nx
+                    if data[neighbour] and not seen[neighbour]:
+                        seen[neighbour] = 1
+                        stack.append(neighbour)
+        xs, ys = [i % width for i in pixels], [i // width for i in pixels]
+        blobs.append({"pixels": pixels, "area": len(pixels),
+                      "box": (min(xs), min(ys), max(xs) + 1, max(ys) + 1)})
+    return blobs
+
+
+def _gap(a, b) -> float:
+    dx = max(a[0] - b[2], b[0] - a[2], 0)
+    dy = max(a[1] - b[3], b[1] - a[3], 0)
+    return (dx * dx + dy * dy) ** 0.5
+
+
+def _merge_specks(blobs):
+    """Attach small blobs to the nearest part within JOIN_DISTANCE, drop the rest."""
+    parts = [b for b in blobs if b["area"] >= MIN_PART_AREA]
+    for small in (b for b in blobs if b["area"] < MIN_PART_AREA):
+        near = min(parts, key=lambda p: _gap(p["box"], small["box"]), default=None)
+        if near is not None and _gap(near["box"], small["box"]) <= JOIN_DISTANCE:
+            near["pixels"] = near["pixels"] + small["pixels"]
+            near["box"] = (min(near["box"][0], small["box"][0]), min(near["box"][1], small["box"][1]),
+                           max(near["box"][2], small["box"][2]), max(near["box"][3], small["box"][3]))
+    return parts
+
+
+def _by_slot(parts, row_sizes):
+    """Rows by vertical position, left to right inside a row, in manifest order.
+
+    `row_sizes` is the number of parts expected per row; extra blobs at the end of a row
+    (a watermark in the empty cell) are ignored."""
+    centres = sorted(parts, key=lambda p: (p["box"][1] + p["box"][3]) / 2)
+    if len(centres) < sum(row_sizes):
+        raise SystemExit("found %d parts on the sheet, expected %d: ask the AI to keep every part "
+                         "separate and on the grid" % (len(centres), sum(row_sizes)))
+    # split into rows at the largest vertical gaps between part centres
+    ys = [(p["box"][1] + p["box"][3]) / 2 for p in centres]
+    gaps = sorted(range(1, len(ys)), key=lambda i: ys[i] - ys[i - 1], reverse=True)[:len(row_sizes) - 1]
+    cuts = [0] + sorted(gaps) + [len(centres)]
+    rows = [sorted(centres[a:b], key=lambda p: p["box"][0]) for a, b in zip(cuts, cuts[1:])]
+    ordered = []
+    for row, size in zip(rows, row_sizes):
+        if len(row) < size:
+            raise SystemExit("a row has %d parts, expected %d: the AI broke the grid" % (len(row), size))
+        ordered.extend(row[:size])
+    return ordered
+
+
+def _crop(sheet: Image.Image, blob) -> Image.Image:
+    mask = bytearray(sheet.width * sheet.height)
+    for index in blob["pixels"]:
+        mask[index] = 255
+    alpha = Image.frombytes("L", sheet.size, bytes(mask))
+    cut = sheet.convert("RGBA")
+    cut.putalpha(alpha)
+    return cut.crop(blob["box"])
+
+
+def _fit(cut: Image.Image, original: Image.Image) -> Image.Image:
+    """Scale `cut` to sit inside the opaque box of `original`, centred on it, on a canvas of its size."""
+    box = original.getchannel("A").getbbox() or (0, 0) + original.size
+    target_w, target_h = box[2] - box[0], box[3] - box[1]
+    scale = min(target_w / cut.width, target_h / cut.height)
+    size = (max(1, round(cut.width * scale)), max(1, round(cut.height * scale)))
+    placed = cut.resize(size, Image.LANCZOS)
+    canvas = Image.new("RGBA", original.size, (0, 0, 0, 0))
+    canvas.paste(placed, (box[0] + (target_w - size[0]) // 2, box[1] + (target_h - size[1]) // 2))
+    return canvas
+
+
+def _redrawn_sheet(kit: Path, sheet_name: str) -> Image.Image:
+    stem = Path(sheet_name).stem
+    found = sorted((kit / "redrawn").glob(stem + ".*"))
+    if not found:
+        raise SystemExit("missing %s/redrawn/%s.*" % (kit, stem))
+    return _load(found[0]).convert("RGB")
 
 
 def import_sheets(name: str, kit: Path, out: Path, parts_dir: Path = None):
+    """Write `out` = every original part, with the redrawn ones replaced. Returns the replaced names.
+
+    The redrawn sheet may have any size and a loose grid: parts are found as separate blobs on
+    the flat background, ordered by row then left to right (the export order), and each one is
+    fitted into the opaque box of the old part, centred on it."""
     parts_dir = parts_dir or sam_render.PARTS_DIR / name
     manifest = json.loads((kit / "manifest.json").read_text())
     out.mkdir(parents=True, exist_ok=True)
-    sheets = {}
-    for entry in manifest["parts"]:
-        if entry["sheet"] not in sheets:
-            sheet = _load(kit / "redrawn" / entry["sheet"]).convert("RGB")
-            if sheet.size != SHEET_SIZE:
-                raise SystemExit("%s is %s, expected %s: ask the AI to keep the sheet size"
-                                 % (entry["sheet"], sheet.size, SHEET_SIZE))
-            sheets[entry["sheet"]] = sheet
-        left, top, width, height = _part_box(entry)
-        cut = sheets[entry["sheet"]].crop((left, top, left + width, top + height))
-        cut = cut.resize((entry["w"], entry["h"]), Image.LANCZOS)
-        alpha = _load(parts_dir / entry["part"]).getchannel("A")
-        _remove_background(cut, alpha).save(out / entry["part"])
-    return len(manifest["parts"])
+    for path in parts_dir.glob("*.swf*.png"):
+        _load(path).save(out / path.name)
+    replaced = []
+    for sheet_name in sorted({e["sheet"] for e in manifest["parts"]}):
+        entries = [e for e in manifest["parts"] if e["sheet"] == sheet_name]
+        row_sizes = [sum(1 for e in entries if e["row"] == r) for r in range(manifest["rows"])]
+        row_sizes = [n for n in row_sizes if n]
+        sheet = _redrawn_sheet(kit, sheet_name)
+        found = _by_slot(_merge_specks(_blobs(_foreground(sheet))), row_sizes)
+        for entry, blob in zip(entries, found):
+            _fit(_crop(sheet, blob), _load(parts_dir / entry["part"])).save(out / entry["part"])
+            replaced.append(entry["part"])
+    return replaced
 
 
 def main(argv=None):
@@ -173,7 +297,7 @@ def main(argv=None):
     else:
         if args.out is None:
             ap.error("import needs an output folder")
-        print("%d parts written" % import_sheets(args.name, args.kit, args.out))
+        print("%d parts replaced" % len(import_sheets(args.name, args.kit, args.out)))
     return 0
 
 

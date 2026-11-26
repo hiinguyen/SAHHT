@@ -86,14 +86,14 @@ def render_frame(animation: sam.Sam, display, parts_dir: Path, scale: float = 2.
 
 
 def render_section(name: str, section: str, anim_dir: Path = ANIM_DIR, parts_dir: Path = PARTS_DIR,
-                   scale: float = 2.0):
+                   scale: float = 2.0, parts: Path = None):
     animation = sam.load(str(anim_dir / (name + ".swf.sam")))
     ranges = animation.sections()
     if section not in ranges:
         raise SystemExit("no section %r in %s; has: %s" % (section, name, ", ".join(ranges)))
     first, last = ranges[section]
     displays = list(frame_states(animation))
-    frames = [render_frame(animation, displays[i], parts_dir / name, scale) for i in range(first, last + 1)]
+    frames = [render_frame(animation, displays[i], parts or parts_dir / name, scale) for i in range(first, last + 1)]
     return frames, animation.tags[0].fps
 
 
@@ -104,6 +104,7 @@ def main(argv=None):
     ap.add_argument("out", nargs="?", help=".gif for the whole section, .png for one frame")
     ap.add_argument("--frame", type=int, default=0, help="frame inside the section for .png")
     ap.add_argument("--scale", type=float, default=2.0)
+    ap.add_argument("--parts", type=Path, help="folder of part PNGs to use instead of the shipped ones")
     args = ap.parse_args(argv)
     if args.section == "list":
         ranges = sam.load(str(ANIM_DIR / (args.name + ".swf.sam"))).sections()
@@ -112,7 +113,7 @@ def main(argv=None):
         return 0
     if not args.out:
         ap.error("out is required")
-    frames, fps = render_section(args.name, args.section, scale=args.scale)
+    frames, fps = render_section(args.name, args.section, scale=args.scale, parts=args.parts)
     if args.out.endswith(".png"):
         frames[args.frame].save(args.out)
     else:
