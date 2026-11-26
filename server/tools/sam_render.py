@@ -25,6 +25,7 @@ ANIM_DIR = DECOMPILED / "apk" / "assets" / "iphonehd" / "anim"
 PARTS_DIR = DECOMPILED / "characters"
 BACKGROUND = (60, 60, 60, 255)
 PAD = 120  # canvas pixels kept around the handle box: attacks reach outside it
+WINDOW = None  # (left, top, right, bottom) in canvas pixels; None: the handle box plus PAD
 
 
 def frame_states(animation: sam.Sam):
@@ -51,12 +52,12 @@ def _tint(layer: Image.Image, color: sam.ColorForm) -> Image.Image:
     return Image.merge("RGBA", out)
 
 
-def _place(part: Image.Image, matrix, size, scale, pad=PAD):
+def _place(part: Image.Image, matrix, size, scale, origin=(PAD, PAD)):
     a, d, mb, mc, tx, ty = matrix
     b, c = -mb, -mc
     w, h = part.size
     fwd = [a * scale, c * scale, 0.0, b * scale, d * scale, 0.0]
-    tx, ty = tx + pad, ty + pad
+    tx, ty = tx + origin[0], ty + origin[1]
     fwd[2] = tx * scale - (fwd[0] * w / 2 + fwd[1] * h / 2)
     fwd[5] = ty * scale - (fwd[3] * w / 2 + fwd[4] * h / 2)
     det = fwd[0] * fwd[4] - fwd[1] * fwd[3]
@@ -68,9 +69,11 @@ def _place(part: Image.Image, matrix, size, scale, pad=PAD):
     return part.transform(size, Image.AFFINE, tuple(inv), resample=Image.BICUBIC)
 
 
-def render_frame(animation: sam.Sam, display, parts_dir: Path, scale: float = 2.0) -> Image.Image:
+def render_frame(animation: sam.Sam, display, parts_dir: Path, scale: float = 2.0,
+                 window=None) -> Image.Image:
     handle = animation.tags[0]
-    size = (int((handle.width + 2 * PAD) * scale), int((handle.height + 2 * PAD) * scale))
+    left, top, right, bottom = window or (-PAD, -PAD, handle.width + PAD, handle.height + PAD)
+    size = (int((right - left) * scale), int((bottom - top) * scale))
     names = animation.images()
     canvas = Image.new("RGBA", size, BACKGROUND)
     for char_id, _z, matrix, color in sorted(display.values(), key=lambda v: v[1]):
@@ -83,21 +86,21 @@ def render_frame(animation: sam.Sam, display, parts_dir: Path, scale: float = 2.
             part = image.convert("RGBA")
         if color is not None:
             part = _tint(part, color)
-        layer = _place(part, matrix, size, scale)
+        layer = _place(part, matrix, size, scale, (-left, -top))
         if layer is not None:
             canvas.alpha_composite(layer)
     return canvas
 
 
 def render_section(name: str, section: str, anim_dir: Path = ANIM_DIR, parts_dir: Path = PARTS_DIR,
-                   scale: float = 2.0, parts: Path = None):
+                   scale: float = 2.0, parts: Path = None, window=None):
     animation = sam.load(str(anim_dir / (name + ".swf.sam")))
     ranges = animation.sections()
     if section not in ranges:
         raise SystemExit("no section %r in %s; has: %s" % (section, name, ", ".join(ranges)))
     first, last = ranges[section]
     displays = list(frame_states(animation))
-    frames = [render_frame(animation, displays[i], parts or parts_dir / name, scale) for i in range(first, last + 1)]
+    frames = [render_frame(animation, displays[i], parts or parts_dir / name, scale, window) for i in range(first, last + 1)]
     return frames, animation.tags[0].fps
 
 
@@ -108,6 +111,7 @@ def main(argv=None):
     ap.add_argument("out", nargs="?", help=".gif for the whole section, .png for one frame")
     ap.add_argument("--frame", type=int, default=0, help="frame inside the section for .png")
     ap.add_argument("--scale", type=float, default=2.0)
+    ap.add_argument("--window", help="left,top,right,bottom in canvas pixels, e.g. -300,-450,900,220")
     ap.add_argument("--parts", type=Path, help="folder of part PNGs to use instead of the shipped ones")
     args = ap.parse_args(argv)
     if args.section == "list":
@@ -117,7 +121,8 @@ def main(argv=None):
         return 0
     if not args.out:
         ap.error("out is required")
-    frames, fps = render_section(args.name, args.section, scale=args.scale, parts=args.parts)
+    frames, fps = render_section(args.name, args.section, scale=args.scale, parts=args.parts,
+                                  window=tuple(int(v) for v in args.window.split(",")) if args.window else None)
     if args.out.endswith(".png"):
         frames[args.frame].save(args.out)
     else:
