@@ -36,8 +36,14 @@ CLIENT_FIXES = {
         ("    self.m_touchRef = 0;\n",
          "    self.m_touchRef = 0;\n    self.m_guideBuilding = nil; -- SAHHT fix: drop a stale sprite from the last visit\n"),
     ],
+    # Lets a caller add its own controls to the shared confirm box: `onBuild(panel, text_label)`.
+    "assets/lua/game_ui/game_pop_up_box.lua": [
+        ('    local m_anim_node = ccbNode:nodeForName("m_anim_node");\n',
+         '    if tableParams.onBuild then tableParams.onBuild(m_text_label:getParent(), m_text_label) end -- SAHHT\n'
+         '    local m_anim_node = ccbNode:nodeForName("m_anim_node");\n'),
+    ],
     # Quick evolution climbs one step. The server's `cards.auto_evolution` also takes `step` (the
-    # target) and answers `max_step`; the confirm box gets a button that cycles the target.
+    # target) and answers `max_step`; the confirm box gets a "-" button, a number field and a "+" button for the target.
     "assets/lua/game_ui/game_hero_advanced_sure.lua": [
         ("    local cardTable = {}\n",
          "    -- SAHHT: a re-run from the target button keeps the chosen step, a fresh tap resets it\n"
@@ -61,13 +67,42 @@ CLIENT_FIXES = {
          "        params2.is_save = 1\n        params2.step = self.m_shhht_target\n"),
         ("            text = tips,      --可缺省\n",
          "            text = tips,      --可缺省\n"
-         "            extBtnText = (sort == 0 and shhht_max > shhht_cur + 1) and \"Đổi bậc\" or nil,\n"
-         "            extCallBack = function()\n"
-         "                self.m_shhht_target = shhht_target + 1 > shhht_max and shhht_cur + 1 or shhht_target + 1\n"
-         "                self.m_shhht_keep = true\n"
-         "                game_util:closeAlertView()\n"
-         "                self:onQuickFunc()\n"
-         "            end,\n"),
+         "            onBuild = (shhht_max > shhht_cur + 1) and function(panel, label)\n"
+         "                local function setTarget(v)\n"
+         "                    v = math.floor(tonumber(v) or shhht_target)\n"
+         "                    v = math.max(shhht_cur + 1, math.min(shhht_max, v))\n"
+         "                    if v == shhht_target then return false end\n"
+         "                    self.m_shhht_target = v\n"
+         "                    self.m_shhht_keep = true\n"
+         "                    -- close and rebuild after this touch or edit event has finished\n"
+         "                    performWithDelay(CCDirector:sharedDirector():getRunningScene(), function()\n"
+         "                        game_util:closeAlertView()\n"
+         "                        self:onQuickFunc()\n"
+         "                    end, 0)\n"
+         "                    return true\n"
+         "                end\n"
+         "                local lx, ly = label:getPosition()\n"
+         "                local y = ly - 26\n"
+         "                local box = game_util:createEditBox({size = CCSizeMake(50, 24), fontSize = 16,\n"
+         "                    maxLength = 3, text = tostring(shhht_target), inputMode = kEditBoxInputModeNumeric,\n"
+         "                    scriptEditBoxHandler = function(event, sender)\n"
+         "                        if event == \"return\" then\n"
+         "                            local edit = tolua.cast(sender, \"CCEditBox\")\n"
+         "                            if not setTarget(edit:getText()) then edit:setText(tostring(shhht_target)) end\n"
+         "                        end\n"
+         "                    end})\n"
+         "                box:setTouchPriority(GLOBAL_TOUCH_PRIORITY - 3)\n"
+         "                box:setPosition(ccp(lx, y))\n"
+         "                panel:addChild(box)\n"
+         "                local function stepper(text, dx, delta)\n"
+         "                    local btn = game_util:createCCControlButton2(\"public_littleBtn.png\", text,\n"
+         "                        function() setTarget(shhht_target + delta) end, GLOBAL_TOUCH_PRIORITY - 3, 22)\n"
+         "                    btn:setPosition(ccp(lx + dx, y))\n"
+         "                    panel:addChild(btn)\n"
+         "                end\n"
+         "                stepper(\"-\", -50, -1)\n"
+         "                stepper(\"+\", 50, 1)\n"
+         "            end or nil,\n"),
         ("    params.is_save = 0\n",
          "    params.is_save = 0\n    params.step = self.m_shhht_target\n"),
     ],
