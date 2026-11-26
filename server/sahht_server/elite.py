@@ -79,7 +79,7 @@ def _city_body(svc: Services, uid: str, city: str) -> dict:
     cleared = _cleared(svc, uid, city, plan)
     score, level, _ = campaign._world_progress(svc, uid)
     return {
-        "city": city, "land": campaign._land(plan, cleared),
+        "city": city, "land": campaign._land(plan, cleared, {campaign._target(plan.buildings, cleared)}),
         "curt_regain": campaign._regain(plan.buildings, cleared),
         "recapture_log": {}, "sweep_log": {},
         "world_level": level, "world_score": score,

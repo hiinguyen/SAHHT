@@ -161,6 +161,18 @@ def _target(buildings, cleared):
     return next((b for b in buildings if b not in cleared), None)
 
 
+TUTORIAL_CITIES = ("100", "101")   # the guided tutorial walks their buildings one by one
+
+
+def _attackable(city: str, buildings, cleared) -> set:
+    """Buildings the player may attack now. Tutorial cities open one building at a time, in id
+    order, because the guide points at the single attackable building; every other city lets
+    the player pick any building that is not cleared yet."""
+    if city not in TUTORIAL_CITIES:
+        return {b for b in buildings if b not in cleared}
+    return {_target(buildings, cleared)} - {None}
+
+
 def _reached_cities(svc: Services, level: int) -> list:
     """Cities in campaign order whose map_main_story open_level the player has reached.
     This is the world map's own rule (map_world_scene.createChapterTips)."""
@@ -189,13 +201,12 @@ def _world_progress(svc: Services, uid: str) -> tuple:
     return score, level, claimed
 
 
-def _land(plan: CityPlan, cleared) -> list:
-    target = _target(plan.buildings, cleared)
+def _land(plan: CityPlan, cleared, attackable) -> list:
     rows = [[list(EMPTY_CELL) for _ in range(plan.width)] for _ in range(plan.height)]
     for y, x, building_id, anchor, icon in plan.cells:
         if building_id == BASE_BUILDING or building_id in cleared:
             state = CLEARED
-        elif building_id == target:
+        elif building_id in attackable:
             state = TARGET
         else:
             state = VISIBLE
@@ -240,7 +251,7 @@ def city_open(req: Request, svc: Services, player: dict):
     steps = svc.store.building_steps(player["uid"])
     score, level, _ = _world_progress(svc, player["uid"])
     return ok({
-        "city": city, "land": _land(plan, cleared),
+        "city": city, "land": _land(plan, cleared, _attackable(city, plan.buildings, cleared)),
         "curt_regain": _regain(plan.buildings, cleared),
         # building -> 0-based steps already won; the client resumes at len(list)
         "recapture_log": {str(b): list(range(n)) for b, n in steps.items() if b in plan.buildings},
@@ -338,7 +349,7 @@ def recapture(req: Request, svc: Services, player: dict):
 
     uid, now = player["uid"], int(time.time())
     cleared = svc.store.cleared_buildings(uid)
-    unlocked = building_id in cleared or building_id == _target(plan.buildings, cleared)
+    unlocked = building_id in cleared or building_id in _attackable(city, plan.buildings, cleared)
     if city not in _reached_cities(svc, player["level"]) or not unlocked:
         return fail("error_building_locked", "Công trình chưa mở.")
     if building_id not in cleared and step > svc.store.building_steps(uid).get(building_id, 0):

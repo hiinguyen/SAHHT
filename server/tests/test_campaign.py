@@ -274,6 +274,40 @@ class SimulatorTests(unittest.TestCase):
         self.assertEqual(sum(f["flag"] == "sort" for f in frames), 30)
 
 
+class FreeBuildingChoiceTests(CampaignCase):
+    """Outside the tutorial cities every building can be attacked in any order."""
+
+    def extra_configs(self):
+        return {
+            "chapter": {"1": {"is_hard": 0, "open_level": 1}},
+            "map_main_story": {"1": {"stage_id": "100", "open_level": 1, "chapter": 1},
+                               "3": {"stage_id": "102", "open_level": 1, "chapter": 1}},
+            "cityid_cityorderid": {"100": "1", "102": "3"},
+            "map_title_detail": {**FIXTURE_CONFIGS["map_title_detail"],
+                                 "102001": _building([100001]), "102002": _building([100002]),
+                                 "102003": _building([100003])},
+        }
+
+    def fight_in_102(self, building, step=0):
+        return self.call("recapture", city="102", building=str(building), step_n=str(step))
+
+    def test_every_uncleared_building_is_attackable(self):
+        land = self.call("open", city="102", chapter="1")["data"]["land"]
+        states = {b: self.cells(land, b)[0][0] for b in (102001, 102002, 102003)}
+        self.assertEqual(states, {102001: 2, 102002: 2, 102003: 2})
+
+    def test_a_later_building_can_be_fought_first(self):
+        body = self.fight_in_102(102003)
+        self.assertEqual(body["status"], 0, body)
+        land = self.call("open", city="102", chapter="1")["data"]["land"]
+        self.assertEqual(self.cells(land, 102003)[0][0], 1)
+        self.assertEqual(self.cells(land, 102001)[0][0], 2)
+
+    def test_steps_inside_a_building_stay_in_order(self):
+        # The tutorial cities keep their order, so the city 100 fixture is still locked.
+        self.assertEqual(self.fight(100002)["status"], "error_building_locked")
+
+
 if __name__ == "__main__":
     unittest.main()
 
