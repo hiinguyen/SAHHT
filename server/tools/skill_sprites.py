@@ -191,8 +191,10 @@ def extract_missile(sheet: Image.Image):
     return padded, [_scaled(puff, PUFF_WIDTH / widest) for puff in puffs]
 
 
-def idle_height(parts_dir: Path, animation_name: str = "ironman") -> float:
-    """Height in canvas pixels of the hero's armor in its idle pose (shadow and flame left out), measured on a render."""
+def idle_box(parts_dir: Path, animation_name: str = "ironman") -> tuple:
+    """Box (left, top, right, bottom) of the hero's armor in its idle pose, measured on a render at
+    scale 1 (shadow and flame left out). Coordinates are those of the render, which starts at
+    -sam_render.PAD on both axes."""
     animation = sam.load(str(sam_render.ANIM_DIR / (animation_name + ".swf.sam")))
     display = list(sam_render.frame_states(animation))[animation.sections()["daiji"][0]]
     body = art_kit.body_parts(animation_name, parts_dir)
@@ -201,6 +203,14 @@ def idle_height(parts_dir: Path, animation_name: str = "ironman") -> float:
     frame = sam_render.render_frame(animation, armor, parts_dir, scale=1).convert("RGB")
     flat = Image.new("RGB", frame.size, sam_render.BACKGROUND[:3])
     box = ImageChops.difference(frame, flat).convert("L").point(lambda v: 255 if v > 8 else 0).getbbox()
+    if box is None:
+        raise SpriteError("the idle hero did not render")
+    return box
+
+
+def idle_height(parts_dir: Path, animation_name: str = "ironman") -> float:
+    """Height in canvas pixels of the hero's armor in its idle pose."""
+    box = idle_box(parts_dir, animation_name)
     return float(box[3] - box[1])
 
 

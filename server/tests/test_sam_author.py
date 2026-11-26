@@ -125,6 +125,14 @@ class CompileTests(unittest.TestCase):
         self.assertEqual(frames[1][1][3].mult, (256, 256, 256, 256))
         self.assertEqual(frames[2][1][3].mult, (256, 256, 256, 256))
 
+    def test_leftovers_from_the_section_before_are_removed_on_the_first_frame(self):
+        timeline = au.Timeline(2)
+        timeline.track(1, 7, 1, {0: {"x": 0}, 1: {"x": 5}}, ease=au.linear)
+        tags = au.compile_section("x", timeline, initial_depths=[1, 2, 3])
+        first_frame = tags[:next(i for i, t in enumerate(tags) if isinstance(t, sam.Show))]
+        self.assertEqual(sorted(t.depth for t in first_frame if isinstance(t, sam.Remove)), [2, 3])
+        self.assertEqual([t.char_id for t in first_frame if isinstance(t, sam.Place)], [7])   # a used depth is placed afresh
+
     def test_output_survives_the_byte_format(self):
         animation = sam.Sam([sam.Handle(10, 10, 24.0, 4), sam.Image(7, "a.png")]
                             + au.compile_section("boom", self._timeline()) + [sam.End()])

@@ -167,10 +167,13 @@ def _color_change(before: Optional[sam.ColorForm], after: Optional[sam.ColorForm
     return after if after is not None else NEUTRAL_COLOR
 
 
-def compile_section(label: str, timeline: Timeline) -> List[sam.Tag]:
-    """Tags for the section: a full place when a depth appears, a move when it only changes."""
+def compile_section(label: str, timeline: Timeline, initial_depths=()) -> List[sam.Tag]:
+    """Tags for the section: a full place when a depth appears, a move when it only changes.
+
+    `initial_depths` are the depths still on the display list when the section starts (the last state
+    of the section before it); the first frame removes the ones the new section does not use."""
     tags: List[sam.Tag] = [sam.Label(label)]
-    shown: Dict[int, Item] = {}
+    shown: Dict[int, Item] = {depth: Item(0, 0, IDENTITY) for depth in initial_depths}
     for frame, display in enumerate(timeline.frames):
         for depth in sorted(set(shown) - set(display)):
             tags.append(sam.Remove(depth))
