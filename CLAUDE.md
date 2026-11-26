@@ -19,7 +19,8 @@ The goal so far: a private server the real client can log into and play the firs
 | `server/build/` | Patched APK, screenshots, logs (gitignored). |
 
 Git: `server/` (minus gitignored data and build output), the decompiled notes and tools, `CLAUDE.md`, `roadmap.md` and `docs/` are tracked; the APK and the extracted client are not. Remote `origin` is `github.com/hiinguyen/SAHHT`.
-Commit only when the user asks.
+Always commit once a bug fix or a new feature is done (tests pass), without waiting to be asked; one commit per fix or feature, message `<type>: <description>`.
+Never push unless the user asks.
 
 ## Client facts that matter
 
