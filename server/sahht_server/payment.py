@@ -8,7 +8,7 @@ free here (player.FREE_TICKETS), so a purchase only grants the pack.
 
 import time
 
-from . import welfare
+from . import grow_plan, welfare
 from .handlers import Request, Services, fail, is_int, ok
 
 ORDER_FIELDS = 4   # uid, server, pack, then the rest (time, channel, random)
@@ -34,14 +34,18 @@ def use_ticket(req: Request, svc: Services, player: dict):
     pack = svc.configs.get("charge").get(pack_id)
     if pack is None:
         return fail("error_param", "Gói nạp không tồn tại.")
-    if pack.get("open_gift") or pack.get("is_show") != 1:
-        # Monthly and weekly cards, growth plans and voucher packs carry rewards of
-        # their own that no system grants yet (roadmap phase 1).
+    is_growth_plan = pack_id == grow_plan.PACK_ID
+    if not is_growth_plan and (pack.get("open_gift") or pack.get("is_show") != 1):
+        # Monthly and weekly cards and voucher packs carry rewards of their own that no
+        # system grants yet (roadmap phase 1). The growth plan has its own module.
         return fail("error_not_open", "Gói này chưa mở.")
     uid = player["uid"]
     with svc.store.transaction():
         if svc.store.payment_exists(order_id):
             return ok()   # the client resent an order that was already paid
+        refusal = grow_plan.refuse_purchase(svc, uid) if is_growth_plan else None
+        if refusal:
+            return refusal
         bought = svc.store.payment_counts(uid).get(pack_id, 0)
         if pack.get("buy_times", 0) and bought >= pack["buy_times"]:
             return fail("error_buy_times", "Gói này đã mua đủ số lần.")
@@ -51,6 +55,8 @@ def use_ticket(req: Request, svc: Services, player: dict):
         svc.store.record_payment(uid, order_id, pack_id, int(time.time()))
         svc.store.change_wallet(uid, {"coin": coin, "vip_exp": pack.get("vip_exp", 0)})
         welfare.record_recharge(svc, uid, coin, int(time.time()))
+        if is_growth_plan:
+            grow_plan.activate(svc, uid)
     return ok()
 
 

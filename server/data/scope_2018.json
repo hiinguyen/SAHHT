@@ -682,6 +682,11 @@
    "open": true,
    "reason": "quà VIP 7 ngày và quà VIP hằng ngày: welfare.py (vip_reward.*)"
   },
+  "grow_gift": {
+   "phase": 1,
+   "open": true,
+   "reason": "kế hoạch trưởng thành: mua gói 12 bằng vé vàng, nhận theo cấp (grow_plan.py)"
+  },
   "wanted": {
    "phase": null,
    "open": false,
@@ -747,8 +752,8 @@
    "reason": "nút Nhiệm vụ ngày (mainSceneTips day): reward.diary_index"
   },
   "5": {
-   "open": false,
-   "reason": "không nơi nào trong Lua gọi view này"
+   "module": "reward",
+   "reason": "tab Thưởng đấu trường của Phúc lợi: các mốc hạng chờ đấu trường, mốc cuối theo cấp"
   },
   "6": {
    "open": true,
@@ -759,8 +764,8 @@
    "reason": "đấu trường trong ui_secretary_detaile.lua; giai đoạn 6"
   },
   "8": {
-   "open": false,
-   "reason": "tab thành tựu online và chấm đỏ once; chưa có bộ đếm giờ online"
+   "module": "reward",
+   "reason": "tab Thưởng online của Phúc lợi và chấm đỏ once (online.py)"
   },
   "9": {
    "module": "daily_award",
@@ -922,8 +927,8 @@
    "reason": "không nơi nào trong Lua gọi view này"
   },
   "49": {
-   "open": false,
-   "reason": "nút phúc lợi trên màn chính (game_main_scene.lua, game_fuli_activity_scene.lua); giai đoạn 1"
+   "module": "active",
+   "reason": "tab Sinh tồn vật tư của Phúc lợi và chấm đỏ alerts.active (supply.py)"
   },
   "101": {
    "module": "user",
@@ -1040,8 +1045,8 @@
    "module": "equip"
   },
   "151": {
-   "open": false,
-   "reason": "sự kiện kế hoạch trưởng thành grow_gift, ngoài phạm vi"
+   "module": "grow_gift",
+   "reason": "tab Kế hoạch trưởng thành của Phúc lợi (game_fuli_subui_growplan.lua)"
   },
   "152": {
    "module": "pets",
