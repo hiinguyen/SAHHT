@@ -535,7 +535,7 @@ class GameApiTests(ServerCase):
         self.assertLessEqual(status["action_point"], status["action_point_max"])
 
     def test_authenticated_responses_carry_top_level_user_status(self):
-        _, body = self.api("arena.battle", self.rans, self.uid)
+        _, body = self.api("cards.open", self.rans, self.uid)
         status = body["user_status"]
         self.assertEqual(status["uid"], self.uid)
         self.assertEqual(status["show_name"], "player_one")
@@ -551,11 +551,11 @@ class GameApiTests(ServerCase):
                 if l.get("method") == method]
 
     def test_unimplemented_api_method_is_closed_with_a_popup_and_logged(self):
-        _, body = self.api("arena.battle", self.rans, self.uid, foo="1")
+        _, body = self.api("god_arena.index", self.rans, self.uid, foo="1")
         self.assertEqual(body["status"], "error_not_open")
         self.assertEqual(body["msg"], "Tính năng chưa mở.")
         self.assertIn("user_status", body)
-        [line] = self.log_lines("arena.battle")
+        [line] = self.log_lines("god_arena.index")
         self.assertTrue(line["closed"])
         self.assertNotIn("stub", line)
         self.assertEqual(line["params"]["foo"], "1")
@@ -581,7 +581,7 @@ class GameApiTests(ServerCase):
 
     def test_request_log_never_stores_passwords_or_tickets(self):
         self.login_api("login", account="player_one", passwd="secret12")
-        self.api("arena.battle", self.rans, self.uid)
+        self.api("cards.open", self.rans, self.uid)
         text = self.log_path.read_text()
         self.assertNotIn("secret12", text)
         self.assertNotIn(self.rans, text)

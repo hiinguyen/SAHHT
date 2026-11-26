@@ -9,8 +9,8 @@
   },
   "arena": {
    "phase": 6,
-   "open": false,
-   "reason": "đấu trường: game_ui/game_arena.lua, game_ui/game_pk.lua; lộ trình giai đoạn 6"
+   "open": true,
+   "reason": "đấu trường và bảng xếp hạng: game_ui/game_arena.lua, game_ui/game_new_rank.lua (arena.py, ranking.py)"
   },
   "association": {
    "phase": 6,
@@ -728,7 +728,12 @@
    "reason": "ngoài phạm vi 2018: cung hoàng đạo thuộc thần giới (game_pop/game_godfield_Star_zhenxing.lua), liên server"
   }
  },
- "quiet": {},
+ "quiet": {
+  "association.guild_all": {
+   "body": {"guild_list": []},
+   "evidence": "tab 4 của game_new_rank.lua đọc data.guild_list; bang hội chưa mở, bảng để trống"
+  }
+ },
  "views": {
   "1": {
    "open": false,
