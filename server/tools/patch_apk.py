@@ -36,6 +36,41 @@ CLIENT_FIXES = {
         ("    self.m_touchRef = 0;\n",
          "    self.m_touchRef = 0;\n    self.m_guideBuilding = nil; -- SAHHT fix: drop a stale sprite from the last visit\n"),
     ],
+    # Quick evolution climbs one step. The server's `cards.auto_evolution` also takes `step` (the
+    # target) and answers `max_step`; the confirm box gets a button that cycles the target.
+    "assets/lua/game_ui/game_hero_advanced_sure.lua": [
+        ("    local cardTable = {}\n",
+         "    -- SAHHT: a re-run from the target button keeps the chosen step, a fresh tap resets it\n"
+         "    if not self.m_shhht_keep then self.m_shhht_target = nil end\n"
+         "    self.m_shhht_keep = nil\n"
+         "    local shhht_hero = game_data:getCardDataById(tostring(self.m_selHeroId))\n"
+         "    local shhht_cur, shhht_max = shhht_hero.step or 0, 0\n"
+         "    local cardTable = {}\n"),
+        ('        local cost_exp = data:getNodeWithKey("cost_exp"):toInt()\n',
+         '        local cost_exp = data:getNodeWithKey("cost_exp"):toInt()\n'
+         '        local shhht_max_node = data:getNodeWithKey("max_step")\n'
+         '        shhht_max = shhht_max_node and shhht_max_node:toInt() or shhht_cur + 1\n'
+         '        local shhht_target = self.m_shhht_target\n'
+         '        if shhht_target == nil or shhht_target <= shhht_cur or shhht_target > shhht_max then\n'
+         '            shhht_target = shhht_cur + 1\n'
+         '        end\n'
+         '        self.m_shhht_target = shhht_target\n'),
+        ('            tips = "Xác nhận tiến hóa nhanh thẻ bài này?"\n',
+         '            tips = "Xác nhận tiến hóa nhanh tới +" .. shhht_target .. " (tối đa +" .. shhht_max .. ")?"\n'),
+        ("        params2.is_save = 1\n",
+         "        params2.is_save = 1\n        params2.step = self.m_shhht_target\n"),
+        ("            text = tips,      --可缺省\n",
+         "            text = tips,      --可缺省\n"
+         "            extBtnText = (sort == 0 and shhht_max > shhht_cur + 1) and \"Đổi bậc\" or nil,\n"
+         "            extCallBack = function()\n"
+         "                self.m_shhht_target = shhht_target + 1 > shhht_max and shhht_cur + 1 or shhht_target + 1\n"
+         "                self.m_shhht_keep = true\n"
+         "                game_util:closeAlertView()\n"
+         "                self:onQuickFunc()\n"
+         "            end,\n"),
+        ("    params.is_save = 0\n",
+         "    params.is_save = 0\n    params.step = self.m_shhht_target\n"),
+    ],
 }
 SIGNATURE_FILE_RE = re.compile(r"^META-INF/(MANIFEST\.MF|[^/]+\.(SF|RSA|DSA|EC))$")
 

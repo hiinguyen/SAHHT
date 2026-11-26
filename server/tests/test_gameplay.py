@@ -819,6 +819,65 @@ class HeroTests(PlayerCase):
         self.assertTrue(cards._evolution_material(rules, major, {"c_id": 53}))
         self.assertFalse(cards._evolution_material(rules, major, {"c_id": 200}))
 
+    def twins_of_hero_100(self, count):
+        """Recruit until the player owns `count` spare copies of hero 100; returns their ids."""
+        for _ in range(40):
+            cards = self.call("cards.open")["data"]["cards"]
+            twins = [i for i, c in cards.items()
+                     if c["c_id"] == 100 and i != self.card_id(100)]
+            if len(twins) >= count:
+                return twins
+            self.recruit(3)
+        self.fail("gacha never gave enough copies of hero 100")
+
+    def raise_hero_100_to_level(self, level):
+        svc = self.server.services
+        svc.store.update_card(self.uid, self.card_id(100), lv=level, exp=0, step=0)
+
+    def test_quick_evolution_previews_then_climbs_to_the_chosen_step(self):
+        self.raise_hero_100_to_level(6)
+        major, twins = self.card_id(100), self.twins_of_hero_100(2)
+        preview = self.call("cards.auto_evolution", major=major, is_save="0", sort="0", step="2")
+        self.assertEqual((preview["status"], preview["data"]["sort"]), (0, 0))
+        self.assertGreaterEqual(preview["data"]["max_step"], 2)   # at least two spares
+        body = self.call("cards.auto_evolution", major=major, is_save="1", sort="0", step="2")
+        self.assertEqual(body["status"], 0)
+        cache = body["data"]["_client_cache_update"]["cards"]["cards"]
+        self.assertEqual(cache["update"][major]["step"], 2)
+        self.assertEqual(sorted(cache["remove"]), sorted(twins[:2]))
+        self.assertEqual(body["user_status"]["food"], 10000 - 2 * 400)
+
+    def test_quick_evolution_defaults_to_one_step(self):
+        self.raise_hero_100_to_level(6)
+        major, twins = self.card_id(100), self.twins_of_hero_100(1)
+        body = self.call("cards.auto_evolution", major=major, is_save="1", sort="0")
+        self.assertEqual(body["data"]["_client_cache_update"]["cards"]["cards"]["update"][major]["step"], 1)
+        self.assertEqual(len(body["data"]["_client_cache_update"]["cards"]["cards"]["remove"]), 1)
+
+    def test_quick_evolution_changes_nothing_when_a_step_is_out_of_reach(self):
+        self.twins_of_hero_100(3)
+        major = self.card_id(100)   # level 1: step 1 already needs level 2
+        before = self.call("cards.open")["data"]["cards"]
+        body = self.call("cards.auto_evolution", major=major, is_save="1", sort="0", step="3")
+        self.assertEqual(body["status"], "error_level")
+        self.assertEqual(self.call("cards.open")["data"]["cards"], before)
+
+    def test_quick_evolution_refuses_when_materials_run_short(self):
+        self.raise_hero_100_to_level(6)
+        major = self.card_id(100)
+        twins = self.twins_of_hero_100(1)
+        for extra in twins[1:]:   # keep exactly one spare copy
+            self.call("cards.butcher", form={"card_id": [extra]})
+        body = self.call("cards.auto_evolution", major=major, is_save="1", sort="0", step="3")
+        self.assertEqual(body["status"], "error_not_enough")
+        self.assertEqual(self.call("cards.open")["data"]["cards"][major]["step"], 0)
+
+    def test_quick_evolution_refuses_a_step_that_is_not_ahead(self):
+        major = self.card_id(100)
+        for step in ("0", "-1", "x"):
+            body = self.call("cards.auto_evolution", major=major, is_save="0", sort="0", step=step)
+            self.assertEqual(body["status"], "error_param")
+
     def test_selling_gives_food_and_refuses_team_cards(self):
         spare = self.recruit()[0]
         body = self.call("cards.butcher", form={"card_id": [spare]})

@@ -17,6 +17,7 @@ from .store import ATTACK_SLOTS, BENCH_SLOTS
 INHERIT_RATE = 0.7          # game_hero_inherit: below VIP 1 a transfer keeps 70% of the exp
 EMPTY = "-1"
 MAX_MATERIALS = 6           # evolution needs min(exp // 10, 6) material cards
+MAX_EVOLUTION_STEP = 100     # upper bound of the climb; the configs end it sooner
 UNIVERSAL_MATERIALS = range(1000, 1006)   # character_ID of the "any hero" evolution cards
 
 
@@ -270,6 +271,31 @@ def _evolution_material(rules: Rules, major: dict, metal: dict) -> bool:
     return theirs == mine or theirs in UNIVERSAL_MATERIALS
 
 
+def _evolution_row(rules: Rules, player: dict, major: dict, step: int) -> dict:
+    """The evolution row that takes `major` (as it stands at `step - 1`) to `step`.
+    Raises Refused when there is no such step or the card or player is too low."""
+    row = rules.evolution_table(rules.characters[str(major["c_id"])]).get(str(step))
+    if row is None:
+        raise Refused("error_max_evo", "Đã đạt giai đoạn cao nhất.")
+    if major["lv"] < row.get("need_level", 0) or player["level"] < row.get("player_level", 0):
+        raise Refused("error_level", "Chưa đạt cấp độ tiến hóa.")
+    return row
+
+
+def _materials_needed(row: dict) -> int:
+    return min(row.get("exp", 0) // 10, MAX_MATERIALS)
+
+
+def _spare_materials(rules: Rules, major: dict, pool: list, count: int) -> list | None:
+    """`count` cards from `pool` that can feed `major`: its own hero line first, then the
+    universal cards, oldest first. None when the pool is short."""
+    line = rules.characters[str(major["c_id"])].get("character_ID")
+    usable = [c for c in pool if _evolution_material(rules, major, c)]
+    usable.sort(key=lambda c: (rules.characters[str(c["c_id"])].get("character_ID") != line,
+                               int(c["id"])))
+    return usable[:count] if len(usable) >= count else None
+
+
 def evolution(req: Request, svc: Services, player: dict):
     uid, rules = player["uid"], Rules.load(svc.configs)
     major_id, metal_ids = req.params.get("major", ""), _ids(req, "metal")
@@ -278,15 +304,10 @@ def evolution(req: Request, svc: Services, player: dict):
         return fail("error_param", "Đồng đội không hợp lệ.")
     major, metals = cards[0], cards[1:]
     character = rules.characters[str(major["c_id"])]
-    row = rules.evolution_table(character).get(str(major["step"] + 1))
-    if row is None:
-        return fail("error_max_evo", "Đã đạt giai đoạn cao nhất.")
-    if major["lv"] < row.get("need_level", 0) or player["level"] < row.get("player_level", 0):
-        return fail("error_level", "Chưa đạt cấp độ tiến hóa.")
-    needed = min(row.get("exp", 0) // 10, MAX_MATERIALS)
-    if len(metals) != needed or any(_in_team(m) or m.get("locked")
-                                    or not _evolution_material(rules, major, m)
-                                    for m in metals):
+    row = _evolution_row(rules, player, major, major["step"] + 1)
+    if len(metals) != _materials_needed(row) or any(_in_team(m) or m.get("locked")
+                                                    or not _evolution_material(rules, major, m)
+                                                    for m in metals):
         return fail("error_param", "Nguyên liệu không hợp lệ.")
     with svc.store.transaction():
         pay(svc, uid, {"food": character.get("evo_food", 0)})
@@ -295,6 +316,58 @@ def evolution(req: Request, svc: Services, player: dict):
                               step=major["step"] + 1)
     return ok({"reward": {}, "_client_cache_update": client_cache(
         svc, uid, cards=[major["id"]], removed_cards=metal_ids)})
+
+
+def _plan_climb(rules: Rules, player: dict, major: dict, pool: list, limit: int):
+    """Walk up from the card's step towards `limit`, taking material cards from `pool`.
+    Returns (card ids per step reached, the Refused that stopped the walk or None)."""
+    per_step: list = []
+    for step in range(major["step"] + 1, limit + 1):
+        try:
+            needed = _materials_needed(_evolution_row(rules, player, major, step))
+        except Refused as stop:
+            return per_step, stop
+        picked = _spare_materials(rules, major, pool, needed)
+        if picked is None:
+            return per_step, Refused("error_not_enough", "Không đủ nguyên liệu.")
+        per_step.append([c["id"] for c in picked])
+        taken = set(per_step[-1])
+        pool = [c for c in pool if c["id"] not in taken]
+    return per_step, None
+
+
+def auto_evolution(req: Request, svc: Services, player: dict):
+    """Quick evolution (`cards.auto_evolution`): climb from the card's step to `step`
+    (default one ahead), picking the material cards from the player's spares.
+    `is_save=0` only checks and reports `max_step`, the highest step the spares and levels
+    allow; `is_save=1` applies every step in one transaction. A shortfall refuses the whole
+    climb, so the client's `sort` is always 0."""
+    uid, rules = player["uid"], Rules.load(svc.configs)
+    cards = _owned(svc, uid, [req.params.get("major", "")])
+    if cards is None:
+        return fail("error_param", "Đồng đội không hợp lệ.")
+    major = cards[0]
+    target = req.params.get("step", str(major["step"] + 1))
+    if not is_int(target) or int(target) <= major["step"]:
+        return fail("error_param", "Bậc tiến hóa không hợp lệ.")
+    target = int(target)
+    pool = [c for c in svc.store.cards_for_player(uid)
+            if c["id"] != major["id"] and not _in_team(c) and not c.get("locked")]
+    per_step, stop = _plan_climb(rules, player, major, pool, MAX_EVOLUTION_STEP)
+    reached = major["step"] + len(per_step)
+    if reached < target:
+        raise stop
+    if req.params.get("is_save") != "1":
+        return ok({"sort": 0, "status": 0, "num": 0, "cost_cards": 0, "cost_inherit": 0,
+                   "cost_exp": 0, "max_step": reached})
+    used = [i for ids in per_step[:target - major["step"]] for i in ids]
+    food = rules.characters[str(major["c_id"])].get("evo_food", 0) * (target - major["step"])
+    with svc.store.transaction():
+        pay(svc, uid, {"food": food})
+        _consume(svc, uid, used)
+        svc.store.update_card(uid, major["id"], lv=major["lv"], exp=major["exp"], step=target)
+    return ok({"reward": {}, "_client_cache_update": client_cache(
+        svc, uid, cards=[major["id"]], removed_cards=used)})
 
 
 # ---- selling --------------------------------------------------------------------
@@ -367,6 +440,7 @@ HANDLERS = {
     ("api", "cards.inherit"): inherit,
     ("api", "cards.card_skill_levelup"): skill_levelup,
     ("api", "cards.card_evolution"): evolution,
+    ("api", "cards.auto_evolution"): auto_evolution,
     ("api", "cards.butcher"): butcher,
     ("api", "cards.select_skill_index"): select_skill_index,
     ("api", "cards.set_battle_skill"): set_battle_skill,
