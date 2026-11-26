@@ -133,7 +133,7 @@ MIN_PART_AREA = 150           # smaller blobs are specks or a watermark, not par
 JOIN_DISTANCE = 24            # a small blob this close to a part belongs to it (antenna, glove tips)
 
 
-def _border_points(width: int, height: int):
+def border_points(width: int, height: int):
     for x in range(0, width, BORDER_STEP):
         yield x, 0
         yield x, height - 1
@@ -142,7 +142,7 @@ def _border_points(width: int, height: int):
         yield width - 1, y
 
 
-def _foreground(sheet: Image.Image) -> Image.Image:
+def foreground(sheet: Image.Image) -> Image.Image:
     """Mask (255 = part) of everything that is not the flat background around the parts.
 
     The background is found by flood fill from the sheet border, so light pixels inside a
@@ -150,7 +150,7 @@ def _foreground(sheet: Image.Image) -> Image.Image:
     sheet = sheet.convert("RGB")
     marked = sheet.copy()
     reference = marked.copy()
-    for point in _border_points(*sheet.size):
+    for point in border_points(*sheet.size):
         seed = reference.getpixel(point)
         if marked.getpixel(point) != MARKER and sum(abs(c - b) for c, b in zip(seed, BACKGROUND)) <= 90:
             ImageDraw.floodfill(marked, point, MARKER, thresh=BACKGROUND_TOLERANCE)
@@ -161,7 +161,7 @@ def _foreground(sheet: Image.Image) -> Image.Image:
     return ImageChops.invert(is_background).filter(ImageFilter.MinFilter(3))
 
 
-def _blobs(mask: Image.Image):
+def blobs(mask: Image.Image):
     """Connected blobs of a mask as dicts with their pixel indexes, area and bounding box."""
     width, height = mask.size
     data = mask.tobytes()
@@ -188,25 +188,25 @@ def _blobs(mask: Image.Image):
     return blobs
 
 
-def _gap(a, b) -> float:
+def gap(a, b) -> float:
     dx = max(a[0] - b[2], b[0] - a[2], 0)
     dy = max(a[1] - b[3], b[1] - a[3], 0)
     return (dx * dx + dy * dy) ** 0.5
 
 
-def _merge_specks(blobs):
+def merge_specks(blobs):
     """Attach small blobs to the nearest part within JOIN_DISTANCE, drop the rest."""
     parts = [b for b in blobs if b["area"] >= MIN_PART_AREA]
     for small in (b for b in blobs if b["area"] < MIN_PART_AREA):
-        near = min(parts, key=lambda p: _gap(p["box"], small["box"]), default=None)
-        if near is not None and _gap(near["box"], small["box"]) <= JOIN_DISTANCE:
+        near = min(parts, key=lambda p: gap(p["box"], small["box"]), default=None)
+        if near is not None and gap(near["box"], small["box"]) <= JOIN_DISTANCE:
             near["pixels"] = near["pixels"] + small["pixels"]
             near["box"] = (min(near["box"][0], small["box"][0]), min(near["box"][1], small["box"][1]),
                            max(near["box"][2], small["box"][2]), max(near["box"][3], small["box"][3]))
     return parts
 
 
-def _by_slot(parts, row_sizes):
+def by_slot(parts, row_sizes):
     """Rows by vertical position, left to right inside a row, in manifest order.
 
     `row_sizes` is the number of parts expected per row; extra blobs at the end of a row
@@ -228,7 +228,7 @@ def _by_slot(parts, row_sizes):
     return ordered
 
 
-def _crop(sheet: Image.Image, blob) -> Image.Image:
+def crop_blob(sheet: Image.Image, blob) -> Image.Image:
     mask = bytearray(sheet.width * sheet.height)
     for index in blob["pixels"]:
         mask[index] = 255
@@ -275,9 +275,9 @@ def import_sheets(name: str, kit: Path, out: Path, parts_dir: Path = None):
         row_sizes = [sum(1 for e in entries if e["row"] == r) for r in range(manifest["rows"])]
         row_sizes = [n for n in row_sizes if n]
         sheet = _redrawn_sheet(kit, sheet_name)
-        found = _by_slot(_merge_specks(_blobs(_foreground(sheet))), row_sizes)
+        found = by_slot(merge_specks(blobs(foreground(sheet))), row_sizes)
         for entry, blob in zip(entries, found):
-            _fit(_crop(sheet, blob), _load(parts_dir / entry["part"])).save(out / entry["part"])
+            _fit(crop_blob(sheet, blob), _load(parts_dir / entry["part"])).save(out / entry["part"])
             replaced.append(entry["part"])
     return replaced
 
