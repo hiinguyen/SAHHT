@@ -20,6 +20,7 @@ from .leader_skill import LeaderBook
 from .player import gain_exp, seed_guides
 from .progression import ACTIVE, SKILL_SLOTS, Rules
 from .rewards import Loot, client_cache, grant, merge_cache, roll
+from .quest_events import SORT_FIGHT, record
 from .shop import DAILY, period
 from .skills import SkillBook
 
@@ -384,6 +385,7 @@ def recapture(req: Request, svc: Services, player: dict):
     })
     if won:
         data.update(_victory(svc, uid, building_id, detail, fight, attackers, last_step, step, now))
+        record(svc, uid, SORT_FIGHT, now)
     data["curt_regain"] = _regain(plan.buildings, svc.store.cleared_buildings(uid))
     return ok(data)
 

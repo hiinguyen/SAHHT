@@ -821,6 +821,8 @@ class HeroTests(PlayerCase):
 
     def twins_of_hero_100(self, count):
         """Recruit until the player owns `count` spare copies of hero 100; returns their ids."""
+        # The draws are random and the starter coin pays for only a few of them.
+        self.server.services.store.change_wallet(self.uid, {"coin": 40 * 3 * 300})
         for _ in range(40):
             cards = self.call("cards.open")["data"]["cards"]
             twins = [i for i, c in cards.items()

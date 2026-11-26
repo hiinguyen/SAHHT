@@ -209,11 +209,28 @@ _CARD_BREAK = """
 ALTER TABLE cards ADD COLUMN bre INTEGER NOT NULL DEFAULT 0;
 """
 
+_MAIL = """
+CREATE TABLE IF NOT EXISTS mail (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    player_id  INTEGER NOT NULL REFERENCES players(id),
+    mail_key   TEXT,
+    sender     TEXT NOT NULL DEFAULT 'sys',
+    title      TEXT NOT NULL DEFAULT '',
+    content    TEXT NOT NULL,
+    gift       TEXT NOT NULL DEFAULT '[]',
+    created_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL,
+    claimed_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS mail_by_player ON mail(player_id, claimed_at);
+CREATE UNIQUE INDEX IF NOT EXISTS mail_once ON mail(player_id, mail_key) WHERE mail_key IS NOT NULL
+"""
+
 # Applied in order; PRAGMA user_version is how many are applied. Migration 1 is the
 # original schema (IF NOT EXISTS), so a database from before migrations is upgraded in
 # place. Never edit an applied migration: append a new one.
 MIGRATIONS = (_SCHEMA, _PAYMENTS, _CARD_LOCK, _EQUIPMENT, _EQUIPMENT_EXTRA, _BATTLE_SKILLS,
-              _LEADER_SKILLS, _GEMS, _ACTIVE_RUNS, _ELITE, _CARD_BREAK)
+              _LEADER_SKILLS, _GEMS, _ACTIVE_RUNS, _ELITE, _CARD_BREAK, _MAIL)
 
 
 def _statements(script: str) -> list[str]:
@@ -670,6 +687,42 @@ class Store:
                     "ON CONFLICT(player_id, item_id) DO UPDATE SET count = count + excluded.count",
                     (_pid(uid), int(item_id), delta))
         return True
+
+    # ---- mail ------------------------------------------------------------------
+
+    def add_mail(self, uid: str, *, key, sender, title, content, gift, now, ttl) -> int | None:
+        """A new inbox row, or None when a mail with the same key was already sent."""
+        with self.transaction():
+            cursor = self._db.execute(
+                "INSERT OR IGNORE INTO mail(player_id, mail_key, sender, title, content, gift,"
+                " created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (_pid(uid), key, sender, title, content, json.dumps(gift), now, now + ttl))
+            return cursor.lastrowid if cursor.rowcount else None
+
+    def mail_inbox(self, uid: str, now: int, limit: int = 100) -> list[dict]:
+        """Unclaimed, unexpired mail, newest first."""
+        rows = self._all(
+            "SELECT * FROM mail WHERE player_id = ? AND claimed_at IS NULL AND expires_at > ? "
+            "ORDER BY created_at DESC, id DESC LIMIT ?", (_pid(uid), now, limit))
+        return [{**dict(row), "gift": json.loads(row["gift"])} for row in rows]
+
+    def mail_row(self, uid: str, mail_id: int, now: int) -> dict | None:
+        """One claimable mail of the player, or None."""
+        row = self._one("SELECT * FROM mail WHERE id = ? AND player_id = ? AND claimed_at IS NULL"
+                        " AND expires_at > ?", (mail_id, _pid(uid), now))
+        return None if row is None else {**dict(row), "gift": json.loads(row["gift"])}
+
+    def claim_mail(self, uid: str, mail_id: int, now: int) -> bool:
+        with self.transaction():
+            return self._db.execute(
+                "UPDATE mail SET claimed_at = ? WHERE id = ? AND player_id = ? "
+                "AND claimed_at IS NULL", (now, mail_id, _pid(uid))).rowcount == 1
+
+    def purge_mail(self, uid: str, before: int) -> None:
+        """Forget claimed mail older than `before` (keyed tombstones included)."""
+        with self.transaction():
+            self._db.execute("DELETE FROM mail WHERE player_id = ? AND claimed_at < ?",
+                             (_pid(uid), before))
 
     # ---- counters (gacha draws, shop purchases, free-draw times) ---------------
 

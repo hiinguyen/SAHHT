@@ -14,6 +14,7 @@ from . import campaign
 from .battle import WIN
 from .handlers import TIMEZONE, Request, Services, fail, is_int, ok
 from .player import vip_level
+from .quest_events import SORT_SURVIVAL, record
 from .rewards import Loot, client_cache, grant, merge_cache
 
 WINDOW_HOURS = 12
@@ -82,6 +83,7 @@ def forever_fight(req: Request, svc: Services, player: dict):
     attackers = campaign._attackers(svc, uid, player["level"])
     defenders = campaign._defenders(svc, "active", fight_row, random.Random())
     data = campaign.run_battle(svc, uid, player, attackers, defenders, fight_row)
+    record(svc, uid, SORT_SURVIVAL, now)
     if data["battle"]["winer"] != WIN:
         _save(svc, uid, now, state["done"], state["fails"] + 1, state["best"])
         return ok({**data, "reward": {}, "active_forever": snapshot(svc, uid, now)})
@@ -108,6 +110,7 @@ def auto_forever_fight(req: Request, svc: Services, player: dict):
     for level in range(state["done"] + 1, target + 1):
         loot.merge(_level_loot(svc, level))
     granted = grant(svc, uid, loot, now)
+    record(svc, uid, SORT_SURVIVAL, now)
     if target > state["done"]:
         _save(svc, uid, now, target, state["fails"], state["best"])
     return ok({"reward": granted.reward, "active_forever": snapshot(svc, uid, now),

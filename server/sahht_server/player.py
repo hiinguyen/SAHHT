@@ -41,12 +41,27 @@ CURRENCIES = (
 # Keys read with no `or default` fallback that have no game system behind them yet.
 _FIXED_STATUS = {
     "association_id": 0, "cur_title": 0,
-    "card_max": 200, "equip_max": equipment.EQUIP_MAX, "role": 1,
+    "role": 1,
 }
+WELCOME_TITLE = "Chào mừng"
+WELCOME_TEXT = "Chào mừng đến với Siêu Anh Hùng Kỳ Sự!\nQuà tân thủ của bạn đây."
+WELCOME_GIFT = [[15, 0, 2000], [6, 3, 2]]   # silver and two stamina potions
+WELCOME_TTL = 365 * 86400
+CARD_BAG, EQUIP_BAG = "card", "equip"
+_BAG_BASE = {CARD_BAG: 200, EQUIP_BAG: equipment.EQUIP_MAX}
 # Gold tickets ("Vé vàng") are how the client pays for recharge packs
 # (native_helper.buyProduct). Recharge is free on this server, so the balance is fixed
 # and never spent. The largest pack costs 300 tickets.
 FREE_TICKETS = 9999
+
+
+def bag_capacity(store, uid: str, bag: str) -> int:
+    """Slots of the hero or equipment bag: the base size plus what bag items added."""
+    return _BAG_BASE[bag] + store.counter(uid, f"bag_expand:{bag}")
+
+
+def expand_bag(store, uid: str, bag: str, slots: int) -> None:
+    store.set_counter(uid, f"bag_expand:{bag}", store.counter(uid, f"bag_expand:{bag}") + slots)
 
 
 def vip_level(configs, vip_exp: int) -> int:
@@ -78,6 +93,9 @@ def ensure_starter(svc, player: dict) -> None:
         # Players from before role.config levels may hold more exp than their level
         # needs; adding nothing runs the level-up walk once and settles them.
         gain_exp(svc, uid, 0, int(time.time()))
+        svc.store.add_mail(uid, key="welcome", sender="sys", title=WELCOME_TITLE,
+                           content=WELCOME_TEXT, gift=WELCOME_GIFT, now=int(time.time()),
+                           ttl=WELCOME_TTL)
         svc.store.set_counter(uid, STARTER_COUNTER, 1)
 
 
@@ -162,6 +180,8 @@ def user_status(svc, uid: str) -> dict:
     wallet = svc.store.wallet(uid)
     return {
         **_FIXED_STATUS,
+        "card_max": bag_capacity(svc.store, uid, CARD_BAG),
+        "equip_max": bag_capacity(svc.store, uid, EQUIP_BAG),
         **{c: wallet.get(c, 0) for c in CURRENCIES},
         **svc.store.state(uid, now),  # action_point, action_point_update_left, exp
         "ticket": FREE_TICKETS,

@@ -11,6 +11,7 @@ from collections import Counter
 from . import equipment, gems
 from .handlers import (FORMATION_COUNTER, Refused, Request, Services, alignment, fail,
                        formation_document, is_int, ok, owned_formations)
+from .quest_events import SORT_SKILL, record
 from .progression import ACTIVE, BATTLE_SKILLS, LOCKED, SKILL_SLOTS, Rules
 from .rewards import CARD, ITEM, Loot, client_cache, grant, merge_cache, pay
 from .store import ATTACK_SLOTS, BENCH_SLOTS
@@ -260,6 +261,7 @@ def skill_levelup(req: Request, svc: Services, player: dict):
         pay(svc, uid, {"food": food})
         _consume(svc, uid, metal_ids)
         svc.store.set_card_skill(major["id"], slot, result.level, result.exp)
+        record(svc, uid, SORT_SKILL, int(time.time()))
     return ok({"_client_cache_update": client_cache(svc, uid, cards=[major["id"]],
                                                     removed_cards=metal_ids)})
 

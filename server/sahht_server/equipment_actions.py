@@ -12,6 +12,7 @@ import time
 
 from . import equipment
 from .handlers import Refused, Request, Services, fail, ok
+from .quest_events import SORT_EQUIP, record
 from .rewards import client_cache, pay
 
 METAL = "metal"
@@ -56,6 +57,7 @@ def factory_equip_levelup(req: Request, svc: Services, player: dict):
     with svc.store.transaction():
         pay(svc, uid, {METAL: cost})
         svc.store.set_equipment_level(uid, equip_id, target)
+        record(svc, uid, SORT_EQUIP, int(time.time()))
     return ok({"reward": {}, "_client_cache_update": client_cache(
         svc, uid, equips=[equip_id])})
 
@@ -84,6 +86,7 @@ def all_equip_levelup_auto(req: Request, svc: Services, player: dict):
         pay(svc, uid, {METAL: spent})
         for equip_id, level in targets.items():
             svc.store.set_equipment_level(uid, equip_id, level)
+        record(svc, uid, SORT_EQUIP, now, len(targets))
     return ok({"reward": {}, "_client_cache_update": client_cache(
         svc, uid, equips=list(targets))})
 

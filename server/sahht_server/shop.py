@@ -1,4 +1,4 @@
-"""The diamond shop (shop.open, shop.buy) and using bag items (item.use).
+"""The diamond shop (shop.open, shop.buy) and the SHHHT VIP shop.
 
 shop.config: `need_value` is the coin price indexed by how many were bought already
 (the last entry repeats), `sell_max` caps purchases per `sell_sort` period (1 daily,
@@ -8,21 +8,17 @@ sees an entry and when. The client filters none of this, so the server does. Ent
 whose rewards include a kind with no system yet are not offered.
 """
 
-import random
 import time
 from datetime import datetime, timedelta, timezone
 
 from .handlers import TIMEZONE, Request, Services, fail, is_int, ok
 from .player import vip_level
-from .rewards import (CARD, CURRENCY_BY_TYPE, ITEM, PLAYER_EXP, Loot, client_cache, grant,
-                      merge_cache, open_box, pay)
+from .rewards import (CARD, CURRENCY_BY_TYPE, ITEM, PLAYER_EXP, Loot, grant, pay)
 
 SUPPORTED = set(CURRENCY_BY_TYPE) | {CARD, ITEM, PLAYER_EXP}
 DAILY, WEEKLY = 1, 2
 MAX_COUNT = 999
 LOCAL = timezone(timedelta(hours=TIMEZONE))
-# item.config is_use codes this server applies.
-USE_BOX, USE_STAMINA, USE_EXP_BALL = 1, 2, 19
 
 
 def period(sort: int, now: int) -> str:
@@ -90,44 +86,6 @@ def shop_buy(req: Request, svc: Services, player: dict):
                "_client_cache_update": granted.cache})
 
 
-def _item_loot(svc: Services, detail: dict, num: int) -> Loot | None:
-    kind, effect = detail.get("is_use"), detail.get("use_effect") or [0]
-    loot = Loot()
-    if kind == USE_BOX:
-        box = svc.configs.get("box").get(str(effect[0]))
-        if box is None:
-            return None
-        rng = random.Random()
-        for _ in range(num):
-            for entry in open_box(box, rng):
-                loot.add(*entry)
-    elif kind == USE_STAMINA:
-        loot.action_point = effect[0] * num
-    elif kind == USE_EXP_BALL:
-        loot.currencies["exp_ball"] = effect[0] * num
-    else:
-        return None
-    return loot
-
-
-def item_use(req: Request, svc: Services, player: dict):
-    """Open a box, drink stamina or cash an exp ball; other item kinds have no system yet."""
-    uid, now = player["uid"], int(time.time())
-    item_id, num = req.params.get("item_id", ""), req.params.get("num", "1")
-    detail = svc.configs.get("item").get(item_id)
-    if detail is None or not is_int(num) or not 1 <= int(num) <= MAX_COUNT:
-        return fail("error_param", "Vật phẩm không hợp lệ.")
-    loot = _item_loot(svc, detail, int(num))
-    if loot is None:
-        return fail("error_item", "Vật phẩm này chưa dùng được.")
-    with svc.store.transaction():
-        if not svc.store.change_items(uid, {int(item_id): -int(num)}):
-            return fail("error_item", "Không đủ vật phẩm.")
-        granted = grant(svc, uid, loot, now)
-    used = client_cache(svc, uid, items=[int(item_id)])
-    return ok({"effect": granted.reward, "_client_cache_update": merge_cache(granted.cache, used)})
-
-
 def _vip_bought(svc: Services, uid: str) -> dict:
     """shop id -> bought count, the map game_vip_shop keeps in `m_shop_data`."""
     return {str(shop_id): bought for shop_id in svc.configs.get("vip_store")
@@ -167,5 +125,4 @@ HANDLERS = {
     ("api", "shop.buy"): shop_buy,
     ("api", "shop.vip_store_index"): vip_store_index,
     ("api", "shop.vip_store_buy"): vip_store_buy,
-    ("api", "item.use"): item_use,
 }

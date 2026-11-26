@@ -25,6 +25,7 @@ from . import campaign, survival
 from .battle import WIN
 from .handlers import Refused, Request, Services, fail, is_int, ok, team_combat
 from .player import vip_level
+from .quest_events import SORT_EXP_STAGE, SORT_RESOURCE_WAR, record
 from .rewards import Loot, client_cache, grant, merge_cache, pay, roll
 from .shop import DAILY, LOCAL, period
 
@@ -140,6 +141,15 @@ def map_fight_and_enemy(req: Request, svc: Services, player: dict):
 
 # ---- runs -------------------------------------------------------------------
 
+# Chapters whose attempts feed a daily task.
+CHAPTER_TASK_SORT = {1: SORT_RESOURCE_WAR, 80: SORT_EXP_STAGE}
+
+
+def _record_participation(svc, uid, chapter, now) -> None:
+    if chapter in CHAPTER_TASK_SORT:
+        record(svc, uid, CHAPTER_TASK_SORT[chapter], now)
+
+
 def _start_or_continue(svc, uid, chapter, active_id, step, cfg, now) -> None:
     """Step 0 starts a run (one attempt, unless an unfinished run was already counted);
     any other step must follow the run's last won step. Raises Refused."""
@@ -150,6 +160,7 @@ def _start_or_continue(svc, uid, chapter, active_id, step, cfg, now) -> None:
             if done >= cfg["times"]:
                 raise Refused("error_times", "Hết lượt tham gia hôm nay.")
             _set_counter(svc, uid, chapter, "done", done + 1, now)
+            _record_participation(svc, uid, chapter, now)
         svc.store.set_active_run(uid, chapter, active_id, [])
     elif run is None or run[0] != active_id or step != len(run[1]):
         raise Refused("error_param", "Chưa thắng các bước trước.")
@@ -228,6 +239,7 @@ def _sweep(svc, player, chapter, active_id, detail, now) -> dict:
         return ok({"next_step": SWEEP_FAILED_STEP, "done_times": cfg["times"] - done,
                    "sweep_reward": {}})
     _set_counter(svc, uid, chapter, "done", done + 1, now)
+    _record_participation(svc, uid, chapter, now)
     granted = _finish_run(svc, uid, chapter, active_id, detail, now)
     return ok({"next_step": -1, "done_times": cfg["times"] - done - 1,
                "sweep_reward": granted.reward, "_client_cache_update": granted.cache})

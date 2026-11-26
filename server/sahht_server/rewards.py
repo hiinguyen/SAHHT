@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 
 from . import equipment
 from .handlers import Refused
-from .player import gain_exp
+from .player import EQUIP_BAG, bag_capacity, gain_exp
 from .progression import Rules
 
 CURRENCY_BY_TYPE = {
@@ -22,6 +22,7 @@ CURRENCY_BY_TYPE = {
     42: "mid_fate_stone", 43: "max_fate_stone", 100: "arena_point",
 }
 CARD, ITEM, EQUIP, PLAYER_EXP, ACTION_POINT, GEM = 5, 6, 7, 8, 13, 19
+LEVELED_CARD = 117   # [117, card id, count, level]: a hero that arrives already levelled
 NOTHING = -1   # weighted lists use [-1, 0, 0, weight] for "no drop"
 
 
@@ -33,6 +34,7 @@ class Loot:
     cards: list = field(default_factory=list)     # character ids
     equips: list = field(default_factory=list)    # equip.config ids
     gems: dict = field(default_factory=dict)      # plain gem key -> count
+    card_levels: dict = field(default_factory=dict)   # character id -> level it arrives at
     player_exp: int = 0
     action_point: int = 0
 
@@ -40,7 +42,7 @@ class Loot:
     def of(cls, triples) -> "Loot":
         loot = cls()
         for triple in triples:
-            loot.add(*triple[:3])
+            loot.add(*triple[:4])
         return loot
 
     def merge(self, other: "Loot") -> None:
@@ -52,11 +54,12 @@ class Loot:
         for key, count in other.gems.items():
             self.gems[key] = self.gems.get(key, 0) + count
         self.cards.extend(other.cards)
+        self.card_levels.update(other.card_levels)
         self.equips.extend(other.equips)
         self.player_exp += other.player_exp
         self.action_point += other.action_point
 
-    def add(self, kind: int, ref, count: int) -> None:
+    def add(self, kind: int, ref, count: int, level: int = 1) -> None:
         """One reward triple; equipment becomes an equipment instance."""
         if count <= 0:
             return
@@ -65,8 +68,10 @@ class Loot:
             self.currencies[key] = self.currencies.get(key, 0) + count
         elif kind == ITEM:
             self.items[int(ref)] = self.items.get(int(ref), 0) + count
-        elif kind == CARD:
+        elif kind in (CARD, LEVELED_CARD):
             self.cards.extend([int(ref)] * count)
+            if kind == LEVELED_CARD and level > 1:
+                self.card_levels[int(ref)] = level
         elif kind == EQUIP:
             self.equips.extend([int(ref)] * count)
         elif kind == GEM:
@@ -126,13 +131,16 @@ def grant(svc, uid: str, loot: Loot, now: int) -> Granted:
         raise Refused("error_scope", "Phần thưởng không hợp lệ.")
     store = svc.store
     with store.transaction():
-        if loot.equips and store.equipment_count(uid) + len(loot.equips) > equipment.EQUIP_MAX:
-            raise Refused("error_equip_full",
-                          f"Túi trang bị đã đầy ({equipment.EQUIP_MAX}).")
+        capacity = bag_capacity(store, uid, EQUIP_BAG)
+        if loot.equips and store.equipment_count(uid) + len(loot.equips) > capacity:
+            raise Refused("error_equip_full", f"Túi trang bị đã đầy ({capacity}).")
         store.change_wallet(uid, loot.currencies)
         store.change_items(uid, loot.items)
         store.change_gems(uid, loot.gems)
         card_ids = store.add_cards(uid, loot.cards)
+        for c_id, card_id in zip(loot.cards, card_ids):
+            if c_id in loot.card_levels:
+                store.update_card(uid, card_id, lv=loot.card_levels[c_id], exp=0, step=0)
         equip_ids = store.add_equipment(uid, loot.equips)
         if loot.action_point:
             store.change_action_point(uid, loot.action_point, now)

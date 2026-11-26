@@ -9,6 +9,7 @@ import json
 import re
 import secrets
 import threading
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import unquote
@@ -335,11 +336,22 @@ def cards_open(req: Request, svc: Services, player: dict):
     })
 
 
+# alert name -> (svc, uid, now) -> value. user.main_page replaces the client's whole `alerts`
+# table, so every module that lights a dot registers here; values must be real booleans.
+ALERT_PROVIDERS: dict = {}
+
+
+def main_alerts(svc: Services, uid: str) -> dict:
+    now = int(time.time())
+    return {"is_double": False,
+            **{name: provider(svc, uid, now) for name, provider in ALERT_PROVIDERS.items()}}
+
+
 def user_main_page(req: Request, svc: Services, player: dict):
     return ok({
         "arena_rank": 1, "arena_point": 0, "buy_ap_times": 0,
         "combat": team_combat(svc, player["uid"]),  # getChangedCombat() does arithmetic on it
-        "timezone": TIMEZONE, "alerts": {"is_double": False}, "resource": {},
+        "timezone": TIMEZONE, "alerts": main_alerts(svc, player["uid"]), "resource": {},
         "notices": [], "actives": {},
         # Without this, returning to the main scene compares a missing top-level
         # all_config_version with the stored one and forces a re-login (game_scene:777).

@@ -8,6 +8,7 @@ free here (player.FREE_TICKETS), so a purchase only grants the pack.
 
 import time
 
+from . import welfare
 from .handlers import Request, Services, fail, is_int, ok
 
 ORDER_FIELDS = 4   # uid, server, pack, then the rest (time, channel, random)
@@ -49,6 +50,7 @@ def use_ticket(req: Request, svc: Services, player: dict):
             coin += pack.get("coin", 0)   # "Nạp tiền lần đầu tặng <coin> Xu"
         svc.store.record_payment(uid, order_id, pack_id, int(time.time()))
         svc.store.change_wallet(uid, {"coin": coin, "vip_exp": pack.get("vip_exp", 0)})
+        welfare.record_recharge(svc, uid, coin, int(time.time()))
     return ok()
 
 

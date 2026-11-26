@@ -17,7 +17,7 @@ from pathlib import Path
 
 from sahht_server.rewards import CARD, ITEM
 from sahht_server.scope import DEFAULT_PATH, UNCLASSIFIED
-from sahht_server.shop import USE_BOX
+from sahht_server.item_use import USE_BOX
 from sahht_server.skills import LAST_HERO_ID
 
 ROOT = Path(__file__).resolve().parent.parent
