@@ -95,6 +95,35 @@ class ClientFixTests(unittest.TestCase):
                          shipped.count("self.m_guideBuilding = nil;") + 1)
 
 
+BATTLE_ENTRY = "assets/lua/game_ui/game_battle_scene.lua"
+BATTLE_LUA = (
+    '            local tempAnim = game_util:createEffectAnimCallBack("buff_huisu",1.0,false,function ()\n'
+    '                self:setCanGo(true,"reenter");\n'
+    '            end);\n'
+    '            else\n'
+    '                self:setCanGo(true,"dengchang anim")\n'
+    '            end\n'
+)
+
+
+class ReenterUnlockTests(unittest.TestCase):
+    def test_a_revive_frame_unlocks_playback_once(self):
+        out = patch_apk.apply_client_fixes(BATTLE_ENTRY, BATTLE_LUA)
+        self.assertIn('"buff_huisu",1.0,false,shhhtUnlock)', out)
+        self.assertEqual(out.count('self:setCanGo(true,"reenter")'), 1)
+        self.assertIn("self.m_shhhtReenterUnlock()", out)
+
+    def test_fails_when_the_shipped_battle_scene_has_changed(self):
+        with self.assertRaises(ValueError):
+            patch_apk.apply_client_fixes(BATTLE_ENTRY, "-- different source\n")
+
+    @unittest.skipUnless(APK.is_file(), "original APK not present")
+    def test_applies_to_the_shipped_client(self):
+        shipped = patch_apk.decrypt(zipfile.ZipFile(APK).read(BATTLE_ENTRY), b"aaa").decode()
+        out = patch_apk.apply_client_fixes(BATTLE_ENTRY, shipped)
+        self.assertIn("m_shhhtReenterUnlock", out)
+
+
 class ApkRewriteTests(unittest.TestCase):
     def _source_apk(self, path):
         with zipfile.ZipFile(path, "w") as z:

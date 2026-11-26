@@ -37,6 +37,32 @@ CLIENT_FIXES = {
          "    self.m_touchRef = 0;\n    self.m_guideBuilding = nil; -- SAHHT fix: drop a stale sprite from the last visit\n"),
     ],
     # Lets a caller add its own controls to the shared confirm box: `onBuild(panel, text_label)`.
+    # A revive frame (`reenter`) locks the playback loop once (`m_canGo` + 1) but unlocks it twice: when
+    # the hero's `dengchang` section ends (`animEnd`) and when the `buff_huisu` effect ends. The effect
+    # always runs at normal speed while the hero follows `action_rythm`, so on fast or x2 playback the
+    # extra unlock lands in a later frame, which starts early and overlaps the one still playing.
+    # The frame now unlocks exactly once, whichever of the two ends first.
+    "assets/lua/game_ui/game_battle_scene.lua": [
+        ('            local tempAnim = game_util:createEffectAnimCallBack("buff_huisu",1.0,false,function ()\n'
+         '                self:setCanGo(true,"reenter");\n'
+         '            end);\n',
+         '            local shhhtUnlock = function ()\n'
+         '                if self.m_shhhtReenterUnlock ~= nil then\n'
+         '                    self.m_shhhtReenterUnlock = nil -- SAHHT fix: one unlock per reenter frame\n'
+         '                    self:setCanGo(true,"reenter");\n'
+         '                end\n'
+         '            end\n'
+         '            self.m_shhhtReenterUnlock = shhhtUnlock\n'
+         '            local tempAnim = game_util:createEffectAnimCallBack("buff_huisu",1.0,false,shhhtUnlock);\n'),
+        ('            else\n'
+         '                self:setCanGo(true,"dengchang anim")\n',
+         '            else\n'
+         '                if self.m_shhhtReenterUnlock ~= nil then\n'
+         '                    self.m_shhhtReenterUnlock()\n'
+         '                else\n'
+         '                    self:setCanGo(true,"dengchang anim")\n'
+         '                end\n'),
+    ],
     "assets/lua/game_ui/game_pop_up_box.lua": [
         ('    local m_anim_node = ccbNode:nodeForName("m_anim_node");\n',
          '    if tableParams.onBuild then tableParams.onBuild(m_text_label:getParent(), m_text_label) end -- SAHHT\n'
