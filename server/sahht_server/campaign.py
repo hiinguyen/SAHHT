@@ -4,10 +4,12 @@ Battles are resolved here. The client sends city, building and step, then only
 plays back the frame list this module returns.
 """
 
+import json
 import random
 import re
 import time
 from dataclasses import dataclass
+from pathlib import Path
 
 from . import equipment, gems
 from .difficulty import Difficulty
@@ -25,6 +27,10 @@ TILES_PER_CELL = 4
 DEFAULT_TMX = "sinjiapo.tmx"            # game_small_map_scene's map when a city names none
 TMX_DIR = ("iphonehd", "building_img")  # where the APK keeps the maps, beside config/
 DEFAULT_GRID = (7, 7)                    # (columns, rows) when the map file is unavailable
+# Tile size (width, height) of each shipped map, from tools/build_tmx_sizes.py: the deployed
+# server has no copy of the APK's maps to read.
+TMX_TILES = json.loads((Path(__file__).resolve().parent.parent / "data" / "tmx_sizes.json")
+                       .read_text(encoding="utf-8"))
 TMX_SIZE_RE = re.compile(r'<map\b[^>]*\bwidth="(\d+)"[^>]*\bheight="(\d+)"')
 BASE_BUILDING = 100000   # the player's own camp, drawn on every city grid
 EMPTY_CELL = (1, 0, "", 1)
@@ -101,7 +107,11 @@ def _land_size(svc: Services, city: str) -> tuple:
     """(columns, rows) of a city's land grid, from its tmx map's size in tiles."""
     order_id = svc.configs.get("cityid_cityorderid").get(city)
     story = svc.configs.get("map_main_story").get(str(order_id)) or {}
-    path = svc.config_dir.parent.joinpath(*TMX_DIR, story.get("tmx") or DEFAULT_TMX)
+    name = story.get("tmx") or DEFAULT_TMX
+    if name in TMX_TILES:
+        width, height = TMX_TILES[name]
+        return width // TILES_PER_CELL, height // TILES_PER_CELL
+    path = svc.config_dir.parent.joinpath(*TMX_DIR, name)
     if not path.is_file():
         return DEFAULT_GRID
     with path.open(encoding="utf-8", errors="replace") as f:

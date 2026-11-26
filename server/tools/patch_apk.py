@@ -26,6 +26,17 @@ _MASK = 0xFFFFFFFF
 
 URL_RE = re.compile(r"^https?://[A-Za-z0-9.\-]+(:\d{1,5})?(/[A-Za-z0-9._~\-/]*)?$")
 URL_LINE_RE = re.compile(r'^(SERVER_LIST_URL_(NET|CN)\s*=\s*)"[^"\n]*"', re.MULTILINE)
+# Fixes to client Lua bugs that the server cannot work around: entry -> [(shipped text, replacement)].
+# Each shipped text must occur exactly once, so a changed client fails loudly instead of silently.
+CLIENT_FIXES = {
+    # The city map is one shared table. `destroy` clears m_guideBuilding, but leaving the screen
+    # any other way (tutorial skip, an earlier failed create) keeps a freed sprite there, and the
+    # next visit dies in createBuilding on `m_guideBuilding:getPositionY()` ("invalid 'self'").
+    "assets/lua/game_ui/game_small_map_scene.lua": [
+        ("    self.m_touchRef = 0;\n",
+         "    self.m_touchRef = 0;\n    self.m_guideBuilding = nil; -- SAHHT fix: drop a stale sprite from the last visit\n"),
+    ],
+}
 SIGNATURE_FILE_RE = re.compile(r"^META-INF/(MANIFEST\.MF|[^/]+\.(SF|RSA|DSA|EC))$")
 
 
@@ -100,6 +111,15 @@ def patch_server_url(lua_source: str, url: str) -> str:
     return URL_LINE_RE.sub(lambda m: f'{m.group(1)}"{url}"', lua_source)
 
 
+def apply_client_fixes(entry: str, lua_source: str) -> str:
+    """Apply the CLIENT_FIXES of `entry`; other entries come back unchanged."""
+    for old, new in CLIENT_FIXES.get(entry, []):
+        if lua_source.count(old) != 1:
+            raise ValueError(f"{entry}: expected exactly one {old.strip()!r}, found {lua_source.count(old)}")
+        lua_source = lua_source.replace(old, new)
+    return lua_source
+
+
 def write_patched_apk(src: Path, dst: Path, url: str) -> None:
     """Copy `src` to `dst` with the config re-pointed and the old signature removed (unsigned)."""
     src, dst = Path(src).resolve(), Path(dst).resolve()
@@ -112,6 +132,11 @@ def write_patched_apk(src: Path, dst: Path, url: str) -> None:
             data = zin.read(info)
             if info.filename == CONFIG_ENTRY:
                 patched = patch_server_url(decrypt(data, LUA_KEY).decode("utf-8"), url)
+                data = encrypt(patched.encode("utf-8"), LUA_KEY)
+                if decrypt(data, LUA_KEY).decode("utf-8") != patched:
+                    raise RuntimeError("re-encryption did not round-trip")
+            elif info.filename in CLIENT_FIXES:
+                patched = apply_client_fixes(info.filename, decrypt(data, LUA_KEY).decode("utf-8"))
                 data = encrypt(patched.encode("utf-8"), LUA_KEY)
                 if decrypt(data, LUA_KEY).decode("utf-8") != patched:
                     raise RuntimeError("re-encryption did not round-trip")

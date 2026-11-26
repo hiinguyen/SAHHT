@@ -64,6 +64,37 @@ class LuaPatchTests(unittest.TestCase):
             patch_apk.patch_server_url('CLIENT_VERSION = "1.5.0"\n', NEW_URL)
 
 
+MAP_ENTRY = "assets/lua/game_ui/game_small_map_scene.lua"
+MAP_LUA = (
+    "function game_small_map_scene.init(self,t_params)\n"
+    "    t_params = t_params or {};\n"
+    "    self.m_buildingTable = {};\n"
+    "    self.m_touchRef = 0;\n"
+    "end\n"
+)
+
+
+class ClientFixTests(unittest.TestCase):
+    def test_city_map_forgets_the_guide_building_of_the_previous_visit(self):
+        out = patch_apk.apply_client_fixes(MAP_ENTRY, MAP_LUA)
+        init_body = out.split("function game_small_map_scene.init", 1)[1]
+        self.assertIn("self.m_guideBuilding = nil;", init_body)
+
+    def test_other_entries_are_untouched(self):
+        self.assertEqual(patch_apk.apply_client_fixes("assets/lua/other.lua", MAP_LUA), MAP_LUA)
+
+    def test_fails_when_the_shipped_code_has_changed(self):
+        with self.assertRaises(ValueError):
+            patch_apk.apply_client_fixes(MAP_ENTRY, "-- different source\n")
+
+    @unittest.skipUnless(APK.is_file(), "original APK not present")
+    def test_applies_to_the_shipped_client(self):
+        shipped = patch_apk.decrypt(zipfile.ZipFile(APK).read(MAP_ENTRY), b"aaa").decode()
+        out = patch_apk.apply_client_fixes(MAP_ENTRY, shipped)
+        self.assertEqual(out.count("self.m_guideBuilding = nil;"),
+                         shipped.count("self.m_guideBuilding = nil;") + 1)
+
+
 class ApkRewriteTests(unittest.TestCase):
     def _source_apk(self, path):
         with zipfile.ZipFile(path, "w") as z:
@@ -77,6 +108,9 @@ class ApkRewriteTests(unittest.TestCase):
             for sig in ("META-INF/MANIFEST.MF", "META-INF/CERT.SF", "META-INF/CERT.RSA"):
                 z.writestr(sig, b"old signature")
             z.writestr("META-INF/androidx.core_core.version", b"1.0.0")
+            z.writestr(zipfile.ZipInfo(MAP_ENTRY),
+                       patch_apk.encrypt(MAP_LUA.encode(), b"aaa"),
+                       compress_type=zipfile.ZIP_STORED)
 
     def test_rewrites_config_drops_old_signature_and_keeps_compression(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -92,6 +126,8 @@ class ApkRewriteTests(unittest.TestCase):
                 self.assertNotIn("META-INF/CERT.SF", names)
                 self.assertNotIn("META-INF/MANIFEST.MF", names)
                 self.assertIn("META-INF/androidx.core_core.version", names)
+                fixed = patch_apk.decrypt(z.read(MAP_ENTRY), b"aaa").decode()
+                self.assertIn("self.m_guideBuilding = nil;", fixed)
                 self.assertEqual(z.getinfo(CONFIG_ENTRY).compress_type, zipfile.ZIP_STORED)
                 self.assertEqual(z.getinfo("lib/arm64-v8a/libgame.so").compress_type,
                                  zipfile.ZIP_STORED)

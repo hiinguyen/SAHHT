@@ -13,6 +13,9 @@ from tests.test_flow import (BASE, FIXTURE_CONFIGS, ROOT, ServerCase, _building,
                               _fight)
 
 
+APK_CONFIG = ROOT.parent / "decompiled" / "apk" / "assets" / "config"
+
+
 class CharacterGateTests(unittest.TestCase):
     def test_skin_heroes_lose_the_unimplemented_button(self):
         """The 5-skill swap is implemented, so `skill_num` stays as the APK ships it."""
@@ -97,12 +100,14 @@ class WorldAchievementTests(CampaignCase):
 
 
 class CityTests(CampaignCase):
-    def test_open_lays_out_every_building_on_the_whole_7x7_grid(self):
+    def test_open_lays_out_every_building_on_the_whole_map_grid(self):
         data = self.call("open", city="100", chapter="1")["data"]
         land = data["land"]
-        # Cells left out are drawn as fog, so the grid is always complete.
-        self.assertEqual(len(land), 7)
-        self.assertTrue(all(len(row) == 7 for row in land))
+        # Cells left out are drawn as fog, so the grid is always complete. The fixture's city
+        # names no map, so it gets the client's default one.
+        cells = campaign.TMX_TILES[campaign.DEFAULT_TMX][0] // campaign.TILES_PER_CELL
+        self.assertEqual(len(land), cells)
+        self.assertTrue(all(len(row) == cells for row in land))
         self.assertTrue(all(len(cell) == 4 for row in land for cell in row))
         self.assertEqual((data["city"], data["curt_regain"], data["recapture_log"]),
                          ("100", 0, {}))
@@ -216,7 +221,31 @@ class LandSizeTests(unittest.TestCase):
                                   configs=SimpleNamespace(get=lambda name: configs.get(name, {})))
             # 4x4 tiles per land cell: 24 tiles wide = 6 columns, 20 tall = 5 rows.
             self.assertEqual(campaign._land_size(svc, "101"), (6, 5))
-            self.assertEqual(campaign._land_size(svc, "999"), campaign.DEFAULT_GRID)
+            # A city that names no map is drawn on the client's default map.
+            width, height = campaign.TMX_TILES[campaign.DEFAULT_TMX]
+            self.assertEqual(campaign._land_size(svc, "999"), (width // 4, height // 4))
+            configs["map_main_story"]["2"]["tmx"] = "unknown.tmx"
+            self.assertEqual(campaign._land_size(svc, "101"), campaign.DEFAULT_GRID)
+
+
+    def test_shipped_map_sizes_do_not_need_the_apk_on_the_server(self):
+        # The deployed server has no iphonehd/building_img folder; city 101 (singpo2.tmx,
+        # 24x24 tiles) fell back to a 7x7 grid there and the client's TMX lookup failed.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "config").mkdir()
+            configs = {"cityid_cityorderid": {"101": "2"},
+                       "map_main_story": {"2": {"stage_id": "101", "tmx": "singpo2.tmx"}}}
+            svc = SimpleNamespace(config_dir=root / "config",
+                                  configs=SimpleNamespace(get=lambda name: configs.get(name, {})))
+            self.assertEqual(campaign._land_size(svc, "101"), (6, 6))
+
+    @unittest.skipUnless((APK_CONFIG / "map_main_story.config").is_file(), "APK configs not present")
+    def test_every_city_map_has_a_shipped_size(self):
+        stories = json.loads((APK_CONFIG / "map_main_story.config").read_text(encoding="utf-8"))
+        names = {s["tmx"] for s in stories.values() if s.get("tmx")} | {campaign.DEFAULT_TMX}
+        missing = sorted(n for n in names if n not in campaign.TMX_TILES)
+        self.assertEqual(missing, [])
 
 
 class SimulatorTests(unittest.TestCase):
