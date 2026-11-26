@@ -36,7 +36,10 @@
 - No full-body PNG exists. A character is a cut-out set of parts (head, arms, hands, hair, cape, effects) packed in one atlas.
 - `anim/<name>-hd.pvr.ccz` is zlib (CCZ header 16 bytes) over PVR v2, RGBA4444.
 - `anim/<name>.plist` gives each part's rectangle (`<name>.swf<N>.png`).
-- `anim/<name>.swf.sam` is the animation data that places and moves parts per frame (format not decoded yet).
+- `anim/<name>.swf.sam` is the animation data that places and moves parts per frame. Decoded 2026-11-26 from `zcanim_*` in `libjinqu.so`; `server/tools/sam.py` reads and writes it, byte-exact on all 535 shipped files.
+  It is a SWF-like tag list (`u32 type, u32 size`, fields read in order, `size` ignored by the loader): 6 handle (width, height, fps, frame count; first), 1 image (id, atlas frame name), 2 label (starts a section), 3 place (char id, depth, z, optional cocos2d matrix `a b c d tx ty`, optional color form with 8.8 fixed multiply/add), 4 remove (depth), 5 show (end of frame), 7 anchor (JSON event string), 0 end.
+  A section is a label up to the next label. Hero sections are actions: `dengchang` enter, `daiji` idle, `qianjin`/`houtui` step, `beiji1/2` hit, `shuaidao`, `binsi`, `siwang` death, `gongji1..7` attacks, `mofa` cast, `shengli` win, `texiao1` effect; `_2` suffixes are a second pose.
+  Anchors are events fired on that frame: `{"type":"wav","res":..}` sound, `shock_screen`, `bao` (hit moment). Format spec: docstring of `server/tools/sam.py`.
 - `tools/ccz2png.py <name> <anim_dir> <out_dir>` writes the atlas and every part as PNG. Example output in `preview/monkey/`.
 - `characters/<name>/` holds atlas + all part PNGs for 322 animation names (1.4 GB, 39957 PNGs). Built with `tools/ccz2png.py apk/assets/iphonehd/anim characters --characters apk/assets/config/character_detail.config`.
 - 6 names in `character_detail.config` have no atlas in the APK: boss, jiayezi, mai, spider, tyrant, zhenzi.

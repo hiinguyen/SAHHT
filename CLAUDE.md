@@ -121,6 +121,7 @@ Python 3 standard library only (no pip installs).
 - `sahht_server/active.py` + `survival.py`: the activity hall (`active.index`, hall rows 40/50/60/70/80: resource war, daily and extreme challenge, exp stage, survival). `config_overrides` hides every other hall row (an unserved row crashes the popup) and trims survival to its 150 levels with fights. Each hall row needs exactly one chapter in `index` for today's weekday.
 - `sahht_server/elite.py`: elite stages (tab "Ải Tinh Anh", cities 301-320; the client sends `hard_open?city=301&chapter=201`), one attempt at a time, state in `elite_*` tables; `private_city.open` and `world_map` are wrapped to answer elite cities.
 - `sahht_server/gm.py` + `gm_api.py` + `tools/admin.py` + `gm-app/`: game-master tooling. `gm.py` finds ids, makes accounts and gives cards/items/gear/gems/currency; `tools/admin.py` is its command line (`account`, `give`, `find`, `show`, `token`); `gm_api.py` is the `admin` HTTP service (GET, `token=`), on only when `server/data/admin_token` exists (gitignored; `python3 -m tools.admin token`). `gm-app/` is the phone app (package `vn.sahht.gm`, one WebView page in `assets/index.html`); `bash gm-app/build.sh` builds `gm-app/build/sahht-gm.apk` without Gradle (needs `platforms;android-34`). A phone reaches the server only when it runs with `--host 0.0.0.0`; the emulator uses `http://10.0.2.2:8080`.
+- `tools/sam.py`: reader/writer for `.sam` animation files (format in `decompiled/NOTES.md`; `tests/test_sam.py`).
 - `tools/patch_apk.py`: repoints the client at a URL, rebuilds the APK without the old signature, zipaligns and signs with `~/.android/debug.keystore`.
 - `tools/cycle.sh`: one emulator test cycle (restart server, relaunch app, tap "Vào game", print requests and Lua errors, screenshot).
 - Handlers are `(Request, Services[, player]) -> body`; register login handlers in `handlers.LOGIN_HANDLERS`, session handlers in `handlers.SESSION_HANDLERS` or `campaign.HANDLERS`.
@@ -193,6 +194,6 @@ Not done (see also `server/README.md`):
 - Gacha free draws; commander (phase 3 branch H) awaits project-owner approval.
 - The "Điểm thu hồi" achievement bar (`world_level`/`world_score`) stays at 0%; its source is unknown.
 - Everything outside phase 0 is closed through `data/scope_2018.json` (hidden or "Tính năng chưa mở.").
-- Client-side unknowns: `.sam` animation format, 56 double-encrypted Lua files, 5 LuaJIT bytecode files, `classes.dex` not decompiled.
+- Client-side unknowns: 56 double-encrypted Lua files, 5 LuaJIT bytecode files, `classes.dex` not decompiled.
 
 Good next steps: phase 1 of `docs/superpowers/specs/2026-11-23-roadmap-2018.md` (daily loop); when a feature is done, open its module in `data/scope_2018.json` and check its views on the emulator.
