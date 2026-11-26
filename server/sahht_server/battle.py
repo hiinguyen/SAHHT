@@ -6,7 +6,8 @@ returns (`game_battle_scene.lua`). Frame shapes used here:
 - `sort` [positions in acting order], once per round
 - `attack` {src, des, hurt}: a normal attack (script `skill1`)
 - `skill` {src, des: [...], hurt: [...], desh: [...], health: [...], name, skillid}:
-  `name` is the script `skill_effect/<animation>/<name>.lua`
+  `name` is the script `skill_effect/<animation>/<name>.lua`; `health` is `[]` for a buff-only
+  cast, because the client draws MISS for a health of 0
 - `buff_skill` {src, des, name, hurt}: a damage-over-time tick
 - `add_buff` / `remove_buff` {src, name}: status art (`skill_effect/buff/<name>.lua`)
 - `cur_data` {pos: {maxHp, tempHp}}: authoritative HP after every action
@@ -388,7 +389,9 @@ class Battle(LeaderCasts):
             # Buff-only skills show the cast on the allies they touched, or on the caster.
             desh = healed or [p for p in cast.touched if p not in enemies] or [caster.pos]
             param["desh"] = desh
-            param["health"] = [cast.heal.get(p, 0) for p in desh]
+            # The client draws MISS for a health of 0, so a buff-only cast sends an empty list:
+            # `desh` still makes the allies targets of the cast art, and no number is drawn.
+            param["health"] = [cast.heal[p] for p in desh] if healed else []
         self.emit("skill", param)
 
     def _finish(self, cast):

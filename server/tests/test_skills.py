@@ -76,7 +76,12 @@ class HeroSkillTests(unittest.TestCase):
         param = frame["param"]
         if frame["flag"] == "skill":
             self.assertEqual(len(param.get("des", ())), len(param.get("hurt", ())))
-            self.assertEqual(len(param.get("desh", ())), len(param.get("health", ())))
+            # A buff-only cast has desh but an empty health: the client draws MISS for a 0.
+            if param.get("health"):
+                self.assertEqual(len(param["desh"]), len(param["health"]))
+                self.assertTrue(all(h > 0 for h in param["health"]))
+            elif "desh" in param:
+                self.assertEqual(param["health"], [])
             self.assertTrue(param.get("des") or param.get("desh"))
             self.assertTrue(all(h >= 0 for h in param.get("hurt", []) + param.get("health", [])))
         if frame["flag"] == "cur_data":

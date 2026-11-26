@@ -119,6 +119,8 @@ class StatusTests(unittest.TestCase):
         self.assertNotIn("pre_battle", [f["flag"] for f in frames])
         self.assertEqual(frames[0]["flag"], "skill")
         self.assertEqual((frames[0]["param"]["skillid"], frames[0]["param"]["desh"]), (830, [0]))
+        # The client draws MISS for a health of 0 on every desh target, so a buff-only cast sends none.
+        self.assertEqual(frames[0]["param"]["health"], [])
         hurts = [p["hurt"] for p in flags(frames, "attack") if p["src"] == 0]
         self.assertEqual(hurts[:4], [200, 200, 200, 100])  # 3 rounds of +100% patk
 
