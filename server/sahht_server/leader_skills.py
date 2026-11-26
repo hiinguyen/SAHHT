@@ -14,9 +14,12 @@ def document(svc: Services, player: dict) -> dict:
     """The harbor document every leader-skill method answers with."""
     book = LeaderBook.load(svc.configs)
     levels, slots = svc.store.leader_skills(player["uid"])
-    learned = {skill_id: lv for skill_id, lv in levels.items() if book.get(skill_id)}
+    # The scene draws a node as locked, with no learn button, unless it is listed here: a
+    # node ready to learn is listed at level 0.
+    available = {skill_id: 0 for skill_id in book.openable(levels, player["level"])}
+    available.update({skill_id: lv for skill_id, lv in levels.items() if book.node(skill_id)})
     return {
-        "available_skill": {str(k): v for k, v in sorted(learned.items())},
+        "available_skill": {str(k): v for k, v in sorted(available.items())},
         "leader_skill": {f"skill_{i + 1}": (slots[i] if i < len(slots) else 0)
                          for i in range(3)},
         # The tree-point pop indexes these two numbers; the tree system is closed.
@@ -33,7 +36,7 @@ def train(req: Request, svc: Services, player: dict):
     """Learn or upgrade one skill with the `star` currency (`is_max=1`: as far as paid)."""
     uid, raw = player["uid"], req.params.get("skill", "")
     book = LeaderBook.load(svc.configs)
-    skill = book.get(int(raw)) if is_int(raw) else None
+    skill = book.node(int(raw)) if is_int(raw) else None
     if skill is None:
         return fail("error_not_open", "Kĩ năng chưa mở.")
     if player["level"] < TREE_LEVEL.get(skill.tree, 0):
@@ -42,6 +45,8 @@ def train(req: Request, svc: Services, player: dict):
     level = levels.get(skill.id, 0)
     if level >= skill.max_level:
         return fail("error_max_level", "Kĩ năng đã đạt cấp tối đa.")
+    if level == 0 and skill.id not in book.openable(levels, player["level"]):
+        return fail("error_not_open", "Cần nâng kĩ năng trước lên cấp tối đa.")
     develop = svc.configs.get("leader_skill_develop").get(str(skill.id)) or {}
     stars = svc.store.wallet(uid).get("star", 0)
     wanted = range(level + 1, skill.max_level + 1) if req.params.get("is_max") == "1" \

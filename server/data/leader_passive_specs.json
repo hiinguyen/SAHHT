@@ -1,0 +1,397 @@
+{
+ "111": {
+  "effects": [
+   {
+    "kind": "damage_up",
+    "skills": [
+     101,
+     112
+    ]
+   }
+  ]
+ },
+ "113": {
+  "effects": [
+   {
+    "kind": "damage_up",
+    "skills": "tree"
+   }
+  ],
+  "note": "'tối đa tăng 15%' = 5 cấp x 3%"
+ },
+ "121": {
+  "effects": [
+   {
+    "kind": "rage_cost",
+    "skills": "tree"
+   }
+  ]
+ },
+ "122": {
+  "effects": [
+   {
+    "kind": "control_chance",
+    "skills": "tree",
+    "control": "stun",
+    "rounds": [
+     1,
+     2
+    ]
+   }
+  ]
+ },
+ "123": {
+  "effects": [
+   {
+    "kind": "damage_up",
+    "skills": "tree",
+    "vs": "stunned"
+   }
+  ]
+ },
+ "131": {
+  "effects": [
+   {
+    "kind": "extra_hit",
+    "skills": [
+     101
+    ]
+   }
+  ]
+ },
+ "133": {
+  "effects": [
+   {
+    "kind": "falloff_down",
+    "skills": [
+     132
+    ]
+   }
+  ],
+  "note": "Giật Điện Liên Hoàn tự giảm 25% sát thương mỗi mục tiêu kế tiếp (falloff trong leader_skill_specs); mỗi cấp bớt 5 điểm hao hụt"
+ },
+ "191": {
+  "effects": [
+   {
+    "kind": "damage_up",
+    "skills": [
+     112
+    ]
+   },
+   {
+    "kind": "extra_hit",
+    "skills": [
+     112
+    ],
+    "fixed": 20
+   }
+  ],
+  "note": "'20% tỉ lệ tấn công thêm' là hằng số; sát thương +3%/cấp"
+ },
+ "192": {
+  "effects": [
+   {
+    "kind": "damage_up",
+    "skills": [
+     132
+    ],
+    "per_level": 6
+   }
+  ],
+  "note": "story 6%/cấp (config ghi 10), theo story"
+ },
+ "211": {
+  "effects": [
+   {
+    "kind": "crit_chance",
+    "skills": [
+     201,
+     212
+    ]
+   }
+  ],
+  "note": "bạo kích nhân 1.5 như CRIT_MULTIPLIER"
+ },
+ "213": {
+  "effects": [
+   {
+    "kind": "crit_damage",
+    "skills": [
+     201,
+     212
+    ]
+   }
+  ]
+ },
+ "221": {
+  "effects": [
+   {
+    "kind": "rage_cost",
+    "skills": "tree"
+   }
+  ]
+ },
+ "222": {
+  "effects": [
+   {
+    "kind": "burn_chance",
+    "skills": "tree",
+    "scale": 5,
+    "rounds": 3
+   }
+  ],
+  "note": "thiêu đốt 5% HP tối đa mỗi hiệp 3 hiệp; 20%/cấp tỉ lệ"
+ },
+ "223": {
+  "effects": [
+   {
+    "kind": "damage_up",
+    "skills": "tree",
+    "vs": "burning"
+   }
+  ]
+ },
+ "231": {
+  "effects": [
+   {
+    "kind": "burn_up",
+    "skills": "tree",
+    "per_level": 0.5
+   }
+  ],
+  "note": "config add 0, story +0.5%/cấp sát thương thiêu đốt"
+ },
+ "233": {
+  "effects": [
+   {
+    "kind": "damage_up",
+    "skills": "tree"
+   }
+  ]
+ },
+ "291": {
+  "effects": [
+   {
+    "kind": "bonus_damage",
+    "skills": [
+     212
+    ],
+    "stat": "ally_avg_matk",
+    "low": 30,
+    "high": 100
+   }
+  ],
+  "note": "nổ cường lực: thêm 30%~100% ma công trung bình phe ta, tỉ lệ 6%/cấp"
+ },
+ "292": {
+  "effects": [
+   {
+    "kind": "ally_buff_chance",
+    "skills": [
+     232
+    ],
+    "stats": [
+     "patk",
+     "matk"
+    ],
+    "pct": 10,
+    "rounds": 2
+   }
+  ],
+  "note": "Mưa Lửa tăng 10% vật công và ma công phe ta 2 hiệp, tỉ lệ 20%/cấp"
+ },
+ "311": {
+  "effects": [
+   {
+    "kind": "damage_up",
+    "skills": [
+     301,
+     312
+    ]
+   }
+  ]
+ },
+ "313": {
+  "effects": [
+   {
+    "kind": "damage_up",
+    "skills": "tree"
+   }
+  ]
+ },
+ "321": {
+  "effects": [
+   {
+    "kind": "free_cast",
+    "skills": "tree"
+   }
+  ]
+ },
+ "322": {
+  "effects": [
+   {
+    "kind": "slow_chance",
+    "skills": "tree",
+    "pct": 20,
+    "rounds": 2
+   }
+  ],
+  "note": "story không nêu mức giảm: giảm 20% tốc độ 2 hiệp"
+ },
+ "323": {
+  "effects": [
+   {
+    "kind": "damage_up",
+    "skills": "tree",
+    "vs": "slowed"
+   }
+  ]
+ },
+ "331": {
+  "effects": [
+   {
+    "kind": "extra_targets",
+    "skills": [
+     301
+    ],
+    "count": 1,
+    "reduction_scale": 1
+   }
+  ],
+  "note": "giảm 40% sát thương ở cấp 1, hồi 7%/cấp (config 47 - 7 x cấp); 2 mục tiêu"
+ },
+ "332": {
+  "effects": [
+   {
+    "kind": "damage_up",
+    "skills": [
+     301,
+     392
+    ]
+   }
+  ]
+ },
+ "333": {
+  "effects": [
+   {
+    "kind": "extra_targets",
+    "skills": [
+     301
+    ],
+    "count": 2,
+    "reduction_scale": 1
+   }
+  ],
+  "note": "giảm 30% ở cấp 1, hồi 5%/cấp; 3 mục tiêu"
+ },
+ "391": {
+  "effects": [
+   {
+    "kind": "control_chance",
+    "skills": [
+     312
+    ],
+    "control": "stun",
+    "rounds": [
+     1,
+     1
+    ]
+   }
+  ],
+  "note": "'tấn công choáng' = choáng 1 hiệp"
+ },
+ "411": {
+  "effects": [
+   {
+    "kind": "damage_up",
+    "skills": [
+     401,
+     412
+    ]
+   }
+  ]
+ },
+ "413": {
+  "effects": [
+   {
+    "kind": "damage_up",
+    "skills": "tree",
+    "per_level": 5
+   }
+  ],
+  "note": "story 5%/cấp (config ghi 3), theo story"
+ },
+ "421": {
+  "effects": [
+   {
+    "kind": "rage_start"
+   }
+  ]
+ },
+ "422": {
+  "effects": [
+   {
+    "kind": "rage_on_hit",
+    "per_level": 20
+   }
+  ],
+  "note": "story 20%/cấp (config ghi 10), theo story; mỗi lần thêm 1 nộ khí"
+ },
+ "423": {
+  "effects": [
+   {
+    "kind": "rage_keep"
+   }
+  ],
+  "note": "nộ khí giữ lại sau khi tung = 3 x cấp"
+ },
+ "431": {
+  "effects": [
+   {
+    "kind": "extra_targets",
+    "skills": [
+     401
+    ],
+    "count": 1,
+    "reduction_scale": 0.5
+   }
+  ],
+  "note": "config 110 - 10 x cấp không đọc được thành %: dùng nửa giá trị làm mức giảm (50% ở cấp 1)"
+ },
+ "432": {
+  "effects": [
+   {
+    "kind": "extra_targets",
+    "skills": [
+     401
+    ],
+    "count": 2,
+    "reduction_scale": 0.5
+   }
+  ],
+  "note": "như 431 (40% ở cấp 1); 3 mục tiêu"
+ },
+ "491": {
+  "effects": [
+   {
+    "kind": "atk_down",
+    "skills": [
+     412
+    ],
+    "stat": "patk",
+    "rounds": 2
+   }
+  ],
+  "note": "'nhất định' đọc là luôn giảm 2 hiệp"
+ },
+ "492": {
+  "effects": [
+   {
+    "kind": "damage_up",
+    "skills": [
+     433
+    ]
+   }
+  ]
+ }
+}

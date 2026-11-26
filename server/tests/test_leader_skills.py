@@ -28,7 +28,7 @@ def leader_config():
                 "base_effect1": 70, "add_effect1": 10, "base_effect2": 0,
                 "add_effect2": 0, "icon": "s_qiyou.png"},
         "111": {"name": "Điện Cao Áp", "script": "", "tree": 1, "cd": 0,
-                "ready_time": 0, "max_level": 5, "is_positive": 0,
+                "ready_time": 0, "max_level": 5, "is_positive": 0, "pre_skill": [101],
                 "base_effect1": 0, "add_effect1": 4, "base_effect2": 0,
                 "add_effect2": 0},
     }
@@ -136,7 +136,7 @@ class LeaderProtocolTests(ServerCase):
         body = self.call("leader_skill.open")
         self.assertEqual(body["status"], 0, body)
         data = body["data"]
-        self.assertEqual(data["available_skill"], {})
+        self.assertEqual(data["available_skill"], {"101": 0})   # roots are ready to learn
         self.assertEqual(data["leader_skill"], {"skill_1": 0, "skill_2": 0, "skill_3": 0})
         self.assertEqual(data["skill_point"], {"1": [0, 0], "2": [0, 0],
                                                "3": [0, 0], "4": [0, 0]})
@@ -158,7 +158,7 @@ class LeaderProtocolTests(ServerCase):
         self.assertEqual(self.call("leader_skill.train", skill="101")["status"],
                          "error_not_enough")
 
-    def test_a_passive_node_and_an_unknown_id_are_closed(self):
+    def test_a_node_waits_for_its_parent_to_reach_the_top_level(self):
         self.assertEqual(self.call("leader_skill.train", skill="111")["status"],
                          "error_not_open")
         self.assertEqual(self.call("leader_skill.train", skill="999999")["status"],

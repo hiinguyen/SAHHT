@@ -19,12 +19,13 @@ import random
 from dataclasses import dataclass, field
 
 from .battle_unit import Buff, Dot, Unit
-from .leader_skill import RAGE_MAX
+from .battle_art import (CONTROL_ART, CRIT_MULTIPLIER, DOT_ART, DOT_TICK_ART, GENERIC_ART,
+                         HEAL_ART, INVINCIBLE_ART, MISS_ART, SHIELD_ART, STAT_ART, buff_art)
+from .leader_battle import LeaderCasts
 
 MAX_ROUNDS = 30          # the battle scene shows "round n/30"
 WIN, LOSS = 1, 10        # the client treats winer < 5 as a win
 MIN_HIT_CHANCE = 5
-CRIT_MULTIPLIER = 1.5
 FOREVER = 10**6
 NORMAL_ATTACK = {"op": "damage", "target": "target", "scale": 100}
 
@@ -33,33 +34,11 @@ CELLS = ("position_a", "position_b", "position_c", "position_d", "position_e", "
 DEFAULT_FORMATION = {"position_a": 0, "position_b": 1, "position_c": 2,
                      "position_d": 3, "position_e": 4, "position_f": 5}
 
-# Status art in skill_effect/buff/.
-CONTROL_ART = {"stun": "buff_giddy", "freeze": "buff_ice", "petrify": "buff_shihua",
-               "sleep": "buff_tired", "paralyze": "buff_mabi", "root": "buff_bingfeng",
-               "fear": "buff_senility", "silence": "buff_chenmo", "chaos": "buff_giddy",
-               "charm": "buff_giddy"}
-DOT_ART = {"burn": "buff_fire", "bleed": "buff_hplow", "poison": "buff_corruption"}
-DOT_TICK_ART = {"burn": "buff_fire_skill", "bleed": "buff_hplow_skill", "poison": "buff_hplow_skill"}
-STAT_ART = {"patk": ("buff_phsc", "buff_phsclow"), "matk": ("buff_mgc", "buff_mgclow"),
-            "def": ("buff_dfs", "buff_dfslow"), "speed": ("buff_speed", "buff_speedlow"),
-            "max_hp": ("buff_hp", "buff_hplow"), "all": ("buff_allup", "buff_senility"),
-            "dodge": ("buff_miss", "buff_speedlow")}
-GENERIC_ART = ("buff_allup", "buff_senility")
-MISS_ART, HEAL_ART, SHIELD_ART, INVINCIBLE_ART = "buff_miss", "buff_hp", "buff_shenyu", "buff_undead"
-
-
 def formation_layout(formation: dict) -> dict:
     """slot -> (row, lane) the way the battle scene places units: the cells whose
     formation value is non-zero, in a..f order, are slots 0..4."""
     cells = [i for i, key in enumerate(CELLS) if formation.get(key, 0) != 0][:5]
     return {slot: (cell // 3, cell % 3) for slot, cell in enumerate(cells)}
-
-
-def buff_art(stat: str, value: float) -> str:
-    if stat == "dmg_taken":
-        return "buff_jianshang" if value < 0 else "buff_zhongshang"
-    up, down = STAT_ART.get(stat, GENERIC_ART)
-    return up if value >= 0 else down
 
 
 @dataclass
@@ -94,8 +73,8 @@ class Cast:
         return self.skill.root if self.skill else 0
 
 
-class Battle:
-    def __init__(self, units, rng=None, script=None, layouts=None, leaders=()):
+class Battle(LeaderCasts):
+    def __init__(self, units, rng=None, script=None, layouts=None, leaders=(), mods=None):
         self.units = units
         self.rng = rng or random.Random()
         self.script = script or (lambda unit, skill, slot: "skill1")
@@ -103,10 +82,7 @@ class Battle:
         self.layouts = layouts or (default, default)
         self.frames = []
         self.round = 1
-        # Leader skills of the attacker side (the player); rage is 0..100.
-        self.leaders = list(leaders)
-        self.rage = 0
-        self.leader_ready = {skill.id: skill.ready_time + 1 for skill in self.leaders}
+        self._init_leaders(leaders, mods)
 
     def run(self):
         self._apply_passives()
@@ -307,85 +283,6 @@ class Battle:
         while unit.extra_actions > 0 and unit.alive and not self._over():
             unit.extra_actions -= 1
             self._turn(unit)
-
-    def _gain_rage(self, amount):
-        if self.leaders:
-            self.rage = min(RAGE_MAX, self.rage + amount)
-
-    # ---- leader skills ---------------------------------------------------
-
-    def _leader_cast(self):
-        """Cast the first equipped leader skill whose rage and cooldown are ready."""
-        if not self.leaders or self.rage < RAGE_MAX:
-            return
-        skill = next((s for s in self.leaders if self.round >= self.leader_ready[s.id]), None)
-        if skill is None:
-            return
-        hurt, touched, arts = {}, [], []
-        for effect in skill.effects:
-            self._leader_effect(skill, effect, hurt, touched, arts)
-        if not touched:
-            return
-        self.emit("skill_hero", {"src": 0, "name": skill.script, "skillid": skill.id,
-                                 "des": touched, "hurt": [hurt.get(p, 0) for p in touched]})
-        self._emit_hp(set(touched))
-        self._emit_art(arts)
-        for unit in self.units:
-            if unit.hp <= 0 and not unit.dead:
-                self._die(unit, None, 0)
-        self.rage = 0
-        self.leader_ready[skill.id] = self.round + skill.cd
-
-    def _leader_effect(self, skill, effect, hurt, touched, arts):
-        targets = self._leader_targets(effect.get("target", skill.aim), skill)
-        for target in targets:
-            if effect["op"] == "damage":
-                amount = round(self._leader_stat(effect["stat"]) * skill.value(effect["scale"]) / 100)
-                amount = self._leader_hurt(target, amount)
-                if target.pos not in touched:
-                    touched.append(target.pos)
-                hurt[target.pos] = hurt.get(target.pos, 0) + amount
-            elif effect["op"] == "control":
-                if target.immune_to_control():
-                    continue
-                target.controls[effect["kind"]] = max(1, int(effect.get("rounds", 1)))
-                arts.append((target.pos, CONTROL_ART[effect["kind"]]))
-
-    def _leader_targets(self, selector, skill):
-        enemies = self._alive(False)
-        allies = self._alive(True)
-        if selector == "enemy_all":
-            return enemies
-        if selector == "enemy_random":
-            return self.rng.sample(enemies, min(3, len(enemies)))
-        if selector == "enemy_lowest_hp":
-            return sorted(enemies, key=lambda u: u.hp_pct)[:1]
-        if selector == "ally_all":
-            return allies
-        if selector == "ally_lowest_hp":
-            return sorted(allies, key=lambda u: u.hp_pct)[:1]
-        return enemies[:1]
-
-    def _leader_stat(self, name):
-        """The aggregate of one side's live units a leader skill scales from."""
-        kind, how, stat = name.split("_", 2)
-        pool = self._alive(True) if kind == "ally" else self._alive(False)
-        values = [unit.stat(stat) for unit in pool] or [0]
-        return max(values) if how == "max" else sum(values) / len(values)
-
-    @staticmethod
-    def _leader_hurt(target, amount):
-        """Leader damage goes through invincibility and shields, like any other hit."""
-        if target.invincible_rounds > 0:
-            amount = 0
-        elif target.invincible_hits > 0:
-            target.invincible_hits -= 1
-            amount = 0
-        absorbed = min(target.shield, amount)
-        target.shield -= absorbed
-        amount = min(target.hp, amount - absorbed)
-        target.hp -= amount
-        return amount
 
     def _turn(self, unit):
         if not unit.alive:
@@ -638,7 +535,7 @@ class Battle:
         if caster.attacker_side == target.attacker_side:
             return
         if target.attacker_side:
-            self._gain_rage(5)   # an ally was hit
+            self._ally_hit_rage()
         cast.dealt += amount
         steal = round(amount * caster.stat("lifesteal") / 100)
         if steal > 0 and caster.alive:
@@ -772,12 +669,14 @@ def build_unit(data: dict) -> Unit:
 
 
 def simulate(attackers: list, defenders: list, rng=None, script=None, layouts=None,
-             leaders=()):
+             leaders=(), mods=None):
     """Resolve a fight; returns (winer, frames) in the battle scene's playback format.
 
     Attackers sit at positions 0-4, defenders at 100-104. `script(unit, skill, slot)`
     names the client animation for a skill; `layouts` is (attacker, defender)
-    `formation_layout` maps. `leaders` are the attacker side's leader skills.
+    `formation_layout` maps. `leaders` are the attacker side's leader skills and `mods`
+    its learned passive nodes (`leader_passives.LeaderMods`).
     """
     units = [build_unit(u) for u in attackers + defenders]
-    return Battle(units, rng=rng, script=script, layouts=layouts, leaders=leaders).run()
+    return Battle(units, rng=rng, script=script, layouts=layouts, leaders=leaders,
+                  mods=mods).run()

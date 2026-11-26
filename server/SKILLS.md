@@ -159,9 +159,11 @@ Written as `name` or `name:arg`; a list means all must hold.
 
 ## Leader skills
 
-`leader_skill.config` has 96 rows; only the 12 whose `script` has a file in
-`skill_effect/leader_skill/` are learnable (the rest are passive nodes whose scripts never
-shipped). `data/leader_skill_specs.json` describes those 12 with a small DSL:
+`leader_skill.config` has 96 rows. The client draws four trees (1-4, opening at player level
+0/10/20/30); trees 5-8 have no screen and stay closed. Of the 48 nodes in trees 1-4, the 12
+whose `script` has a file in `skill_effect/leader_skill/` are cast skills; the other 36 are
+passive nodes, specced in `data/leader_passive_specs.json` (see "Passive nodes" below).
+`data/leader_skill_specs.json` describes the 12 cast skills with a small DSL:
 
 | field | meaning |
 |---|---|
@@ -175,6 +177,22 @@ hit. At the start of a round with 100 rage the first equipped skill whose `ready
 `cd` are satisfied casts, emitting a `skill_hero` frame (`{src: 0, name: <script>, skillid,
 des, hurt}`), then rage returns to 0. Leader damage is `stat * scale%` without the normal
 defense step. These are server rules: the client has no formula for any of them.
+
+## Passive nodes
+
+A node is learnable once its tree is open and every parent node is at its top level (the
+client's "Điều kiện mở: ... đạt cấp 5"); `leader_skill.open` lists such nodes at level 0, which
+is the only way the scene draws a learn button. A passive is never equipped; its learned level
+feeds `leader_passives.LeaderMods`, which `leader_battle.py` consults when the player's leader
+skills cast. A passive spec is a list of effects with a `kind` (`leader_passives.KINDS`):
+`damage_up` (optionally `vs` stunned/slowed/burning), `rage_cost`, `free_cast`,
+`control_chance`, `slow_chance`, `burn_chance`, `burn_up`, `extra_targets`, `extra_hit`,
+`crit_chance`, `crit_damage`, `falloff_down`, `atk_down`, `ally_buff_chance`, `bonus_damage`,
+`rage_start`, `rage_on_hit` and `rage_keep`. `skills` is a list of skill ids or `"tree"`.
+The value at level L is `fixed`, else `per_level * L`, else `base_effect1 + add_effect1 * L`.
+Where a story disagrees with the config's number the spec follows the story and says so in
+`note`. `leader_skill.add_tree_point`, `wash_down` and `train_force` have no screen that calls
+them and stay closed.
 
 ## Curation rules
 

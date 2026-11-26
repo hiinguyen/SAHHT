@@ -5,15 +5,18 @@ The client owns no rule for these either; `leader_skill.config` gives the number
 (the client script in `skill_effect/leader_skill/`) and `icon`. This module reads
 the curated specs in `data/leader_skill_specs.json` and builds a runnable skill.
 
-Only the 12 skills whose `script` has a file in the APK are specced; the other
-config rows are passive nodes whose effect scripts never shipped, so they stay
-closed (see `SKILLS.md`).
+Only the 12 skills whose `script` has a file in the APK can be cast. The other nodes of the
+four trees the client draws are passives: `leader_passives.py` and
+`data/leader_passive_specs.json` say what they do (see `SKILLS.md`). The nodes of trees
+5-8 have no screen in the client and stay closed.
 """
 
 import json
 import re
 from dataclasses import dataclass, replace
 from pathlib import Path
+
+from . import leader_passives
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 SPECS_PATH = DATA_DIR / "leader_skill_specs.json"
@@ -31,7 +34,7 @@ LEADER_TARGETS = ("enemy_all", "enemy_front", "enemy_random", "enemy_lowest_hp",
                   "ally_all", "ally_lowest_hp")
 CONTROLS = ("stun", "freeze", "petrify", "sleep", "paralyze", "root", "fear",
             "silence", "chaos", "charm")
-OPS = {"damage": {"type", "stat", "scale"}, "control": {"kind", "rounds"}}
+OPS = {"damage": {"type", "stat", "scale", "falloff"}, "control": {"kind", "rounds"}}
 VALUE_RE = re.compile(r"^-?effect[12]$")
 
 
@@ -67,6 +70,15 @@ class LeaderSkill:
         steps = max(0, level - 1)
         return replace(self, effect1=self.effect1 + self.add1 * steps,
                        effect2=self.effect2 + self.add2 * steps)
+
+
+@dataclass(frozen=True)
+class Node:
+    """One learnable tree node, active or passive."""
+    id: int
+    tree: int
+    max_level: int
+    pre_skill: tuple
 
 
 def validate(skill_id, spec) -> list:
@@ -120,8 +132,10 @@ def validate_all(specs: dict) -> list:
 class LeaderBook:
     """The learnable leader skills, resolved from config plus the curated specs."""
 
-    def __init__(self, config: dict, specs: dict):
+    def __init__(self, config: dict, specs: dict, passive_specs: dict | None = None):
         self._skills = {}
+        self._passives = {}
+        self._nodes = {}
         for key, spec in specs.items():
             row = config.get(str(key))
             if not isinstance(row, dict):
@@ -136,17 +150,51 @@ class LeaderBook:
                 add1=float(row.get("add_effect1", 0)),
                 add2=float(row.get("add_effect2", 0)),
                 aim=spec["aim"], effects=tuple(spec["effects"]))
+            self._add_node(int(key), row)
+        for key, spec in (passive_specs or {}).items():
+            row = config.get(str(key))
+            if isinstance(row, dict) and int(key) not in self._skills:
+                self._passives[int(key)] = (row, spec)
+                self._add_node(int(key), row)
+
+    def _add_node(self, skill_id: int, row: dict):
+        self._nodes[skill_id] = Node(
+            skill_id, int(row.get("tree", 0)), int(row.get("max_level", 1)),
+            tuple(int(p) for p in row.get("pre_skill", [])))
 
     @classmethod
     def load(cls, configs) -> "LeaderBook":
         return configs.derived("leader_book", lambda: cls(
-            configs.get("leader_skill"), _load_json(SPECS_PATH)))
+            configs.get("leader_skill"), _load_json(SPECS_PATH), leader_passives.load_specs()))
 
     def get(self, skill_id) -> LeaderSkill | None:
+        """A castable skill, or None (passive nodes are not cast)."""
         return self._skills.get(int(skill_id))
 
     def ids(self) -> list:
         return sorted(self._skills)
+
+    def node(self, skill_id) -> Node | None:
+        """Any learnable node of the four trees, castable or passive."""
+        return self._nodes.get(int(skill_id))
+
+    def passive_at(self, skill_id, level: int):
+        """The passive node `skill_id` learned at `level`, or None for a cast skill."""
+        entry = self._passives.get(int(skill_id))
+        if entry is None or level < 1:
+            return None
+        row, spec = entry
+        return leader_passives.make_passive(int(skill_id), int(row.get("tree", 0)), row, spec, level)
+
+    def openable(self, levels: dict, player_level: int) -> list:
+        """Nodes the player may start learning: their tree is open and every parent node is
+        at its top level (the client's "Điều kiện mở: ... đạt cấp 5")."""
+        return sorted(
+            node.id for node in self._nodes.values()
+            if player_level >= TREE_LEVEL.get(node.tree, 10**6)
+            and all(levels.get(p, 0) >= self._nodes[p].max_level
+                    for p in node.pre_skill if p in self._nodes)
+            and all(p in self._nodes for p in node.pre_skill))
 
     def spec_file(self) -> dict:
         return _load_json(SPECS_PATH)

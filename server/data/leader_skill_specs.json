@@ -16,9 +16,9 @@
  "132": {
   "aim": "enemy_random",
   "effects": [
-   {"op": "damage", "target": "enemy_random", "type": "magic", "stat": "enemy_max_matk", "scale": "effect1"}
+   {"op": "damage", "target": "enemy_random", "type": "magic", "stat": "enemy_max_matk", "scale": "effect1", "falloff": 25}
   ],
-  "note": "3 mục tiêu ngẫu nhiên; 'mỗi lần sát thương giảm 25%' bỏ qua, engine chọn ngẫu nhiên 3"
+  "note": "3 mục tiêu ngẫu nhiên, mỗi mục tiêu kế tiếp nhận ít hơn 25% (falloff); Tăng Áp (133) bớt hao hụt này"
  },
  "201": {
   "aim": "enemy_front",

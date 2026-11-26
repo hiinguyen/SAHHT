@@ -15,6 +15,7 @@ from . import equipment, gems
 from .difficulty import Difficulty
 from .battle import WIN, formation_layout, simulate
 from .handlers import Request, Services, current_formation, fail, formation_cards, is_int, ok
+from .leader_passives import LeaderMods
 from .leader_skill import LeaderBook
 from .player import gain_exp, seed_guides
 from .progression import ACTIVE, SKILL_SLOTS, Rules
@@ -448,7 +449,8 @@ def run_battle(svc: Services, uid: str, player: dict, attackers: list, defenders
     """Play a fight with the player's formation and leader skills; the battle record the
     battle scene replays (`has_battled` is the one flag the client checks, exactly 1)."""
     formation, leaders = current_formation(svc, uid), _leader_skills(svc, uid)
-    winer, frames = _fight(svc, attackers, defenders, fight, formation, leaders)
+    winer, frames = _fight(svc, attackers, defenders, fight, formation, leaders,
+                           _leader_mods(svc, uid))
     return {
         "has_battled": 1,
         "battle": {
@@ -546,8 +548,16 @@ def _leader_skills(svc: Services, uid: str) -> list:
     return leaders
 
 
+def _leader_mods(svc: Services, uid: str) -> LeaderMods:
+    """The player's learned passive leader nodes."""
+    book = LeaderBook.load(svc.configs)
+    levels, _ = svc.store.leader_skills(uid)
+    return LeaderMods(p for skill_id, lv in levels.items()
+                      if (p := book.passive_at(skill_id, lv)) is not None)
+
+
 def _fight(svc: Services, attackers: list, defenders: list, fight: dict, formation: int,
-           leaders=()):
+           leaders=(), mods=None):
     """Run the battle with hero and enemy skills; the player's leader skills fire on rage.
     The attackers stand in the player's chosen formation layout."""
     book = SkillBook.load(svc.configs)
@@ -556,7 +566,7 @@ def _fight(svc: Services, attackers: list, defenders: list, fight: dict, formati
                     for f in (formation, fight.get("formation_id", 1)))
     return simulate(attackers, defenders, rng=random.Random(), layouts=layouts,
                     script=lambda unit, skill, slot: book.script(unit.animation, skill, slot),
-                    leaders=leaders)
+                    leaders=leaders, mods=mods)
 
 
 def _battle_init(player: dict, attackers: list, defenders: list, fight: dict,
