@@ -1002,3 +1002,49 @@ class VipShopTests(PlayerCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class GraceShopTests(PlayerCase):
+    """The Thần Ân exchange opened from hero breakthrough (sacrifice.open_shop)."""
+
+    def extra_configs(self):
+        return {"tree_shop": {
+            "1": {"need_sort": 5, "need_value": [100], "sell_max": 0, "sell_sort": 0,
+                  "shop_reward": [[6, 27, 1]], "show_level": [1, 300]},
+            "2": {"need_sort": 6, "need_value": [50, 80], "sell_max": 0, "sell_sort": 0,
+                  "shop_reward": [[6, 1018, 1]], "show_level": [1, 300]},
+            "3": {"need_sort": 5, "need_value": [10], "sell_max": 1, "sell_sort": 1,
+                  "shop_reward": [[6, 27, 1]], "show_level": [1, 300]},
+        }}
+
+    def setUp(self):
+        super().setUp()
+        self.store = self.server.services.store
+        self.store.change_wallet(self.uid, {"grace": 500, "grace_high": 500})
+
+    def test_the_shop_lists_every_entry_with_nothing_bought(self):
+        items = self.call("sacrifice.open_shop")["data"]["items"]
+        self.assertEqual({k: v["bought"] for k, v in items.items()}, {"1": 0, "2": 0, "3": 0})
+
+    def test_an_exchange_pays_the_balance_named_by_need_sort(self):
+        body = self.call("sacrifice.grace_exchange", shop_id="1", count="2")
+        self.assertEqual(body["data"]["reward"], {"item": [27, 27]})
+        self.assertEqual(body["data"]["bought"], 2)
+        wallet = self.store.wallet(self.uid)
+        self.assertEqual((wallet["grace"], wallet["grace_high"]), (300, 500))
+
+    def test_the_price_follows_how_many_were_bought(self):
+        self.call("sacrifice.grace_exchange", shop_id="2")
+        self.call("sacrifice.grace_exchange", shop_id="2")
+        self.assertEqual(self.store.wallet(self.uid)["grace_high"], 500 - 50 - 80)
+        self.assertEqual(self.call("sacrifice.open_shop")["data"]["items"]["2"]["bought"], 2)
+
+    def test_a_short_balance_and_a_spent_cap_are_refused(self):
+        self.store.change_wallet(self.uid, {"grace": -450})
+        self.assertEqual(self.call("sacrifice.grace_exchange", shop_id="1")["status"],
+                         "error_not_enough")
+        self.assertEqual(self.call("sacrifice.grace_exchange", shop_id="3")["status"], 0)
+        self.assertEqual(self.call("sacrifice.grace_exchange", shop_id="3")["status"],
+                         "error_sell_max")
+        self.assertEqual(self.call("sacrifice.grace_exchange", shop_id="9")["status"],
+                         "error_param")

@@ -486,8 +486,8 @@
   },
   "sacrifice": {
    "phase": 5,
-   "open": false,
-   "reason": "hiến tế tướng: game_ui/game_offering_sacrifices.lua; lộ trình giai đoạn 5"
+   "open": true,
+   "reason": "hiến tế tướng (game_ui/game_offering_sacrifices.lua) chưa làm; mới có cửa hàng Thần Ân mở từ màn chuyển sinh: sacrifice.open_shop, grace_exchange"
   },
   "school": {
    "phase": null,
