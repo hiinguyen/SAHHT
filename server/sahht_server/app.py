@@ -12,7 +12,7 @@ from urllib.parse import parse_qs, urlsplit
 
 from . import (active, campaign, cards, config_overrides, elite, equip_gacha, equipment_actions,
                equipment_enchant, equipment_fate, equipment_forge, equipment_refine,
-               equipment_split, gacha, gem_actions, gm_api, handlers, leader_skills, payment, shop)
+               equipment_split, gacha, gem_actions, gm_api, handlers, leader_skills, payment, shop, sweep)
 from . import scope as scope_module
 from .player import user_status
 from .handlers import ConfigCache, Request, Services
@@ -25,7 +25,8 @@ SESSION_HANDLERS = {**handlers.SESSION_HANDLERS, **active.HANDLERS, **campaign.H
                     **equipment_enchant.HANDLERS, **equipment_fate.HANDLERS,
                     **equipment_forge.HANDLERS, **equipment_refine.HANDLERS,
                     **equipment_split.HANDLERS, **gacha.HANDLERS, **gem_actions.HANDLERS,
-                    **leader_skills.HANDLERS, **shop.HANDLERS, **payment.HANDLERS}
+                    **leader_skills.HANDLERS, **shop.HANDLERS, **sweep.HANDLERS,
+                    **payment.HANDLERS}
 SERVICES = {"login", "api", "config", "pay", "dataosha", "lua_ver", "admin"}
 SESSION_SERVICES = {"api", "pay", "dataosha"}
 QUIET_SERVICES = {"dataosha"}   # the client's own analytics: answered, never shown

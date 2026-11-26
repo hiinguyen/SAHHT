@@ -68,6 +68,7 @@ Commit only when the user asks.
 - New cards and items reach the client only through `data._client_cache_update`; its `remove` lists are read unguarded. Currency balances change only through `user_status`.
 - `cards.set_alignment` and `cards.butcher` are POST with a form body; `metal=` and `card_id=` repeat. `Request.lists` holds every value.
 - Tutorial progress is `user_status.guide` (`{"1": step}`); a new player starts at `{"1": 1}`. `game_guide_controller.getCurrentId` switches to team 2 as soon as `guide["2"] == 28`, so a team may only start after the previous one is done.
+  Hero evolution (button 502) reads `guide["5"] >= 501`; `player.seed_guides` finishes team 5 once building 100001 (stage 1-1) is cleared and team 1 is done, so it no longer waits for the chain.
 - Cities unlock by player level (`map_main_story.open_level`), not by clearing the previous city.
   The server opens every normal (not `is_hard`) chapter and city at level 1 by editing `chapter` and `map_main_story` (`sahht_server/config_overrides.py`); `loading` reports new versions for edited configs and the client downloads them through `/config/?method=all_config` and keeps them across launches.
   The chapter picker (`game_chapter_pop`) taps `chapter:getNodeAt(i)`, so the served `chapter` lists normal chapters first by number.
@@ -106,8 +107,9 @@ Python 3 standard library only (no pip installs).
 - `sahht_server/payment.py`: free recharge (`payment.use_ticket`, `shop.vip_buy_step`), table `payments` keyed by the client's order id.
 - `sahht_server/handlers.py`: login, boot and roster handlers, `user_status`, `ConfigCache` (loads `<name>.config` once, plus memoized derived indexes; uses an `RLock` because builders call `get()`), `card_document`, starter heroes `(5300, 100, 200)`.
 - `sahht_server/config_overrides.py`: server edits to APK configs (`ConfigCache.get` applies them, `raw` is the APK's copy), their versions in the `loading` map, served by `all_config`.
+- `sahht_server/sweep.py`: auto battle of a recaptured building (`private_city.auto_recapture`, `clear_sweep_log`); sweeps used today are `counters` named `sweep:<building>` with a daily period, reported in `private_city.open`'s `sweep_log`.
 - `sahht_server/campaign.py`: the four `private_city.*` handlers, city grid packing (`CityPlan`), unlock order, building battle units, `battle.init` (leader ids and `atk_role`).
-- `sahht_server/leader_skill.py` + `leader_skills.py`: the leader-skill book, the `leader_skill.*` handlers and the rage rules the engine runs.
+- `sahht_server/leader_skill.py` + `leader_skills.py` + `leader_passives.py` + `leader_battle.py` + `battle_art.py`: the leader-skill book (cast skills and passive nodes), the `leader_skill.*` handlers, and the rage rules the engine runs (`Battle` mixes in `LeaderCasts`).
 - `sahht_server/battle.py` + `battle_unit.py`: the battle engine (skills, buffs, controls, DoTs, revives) and its frames. `skills.py` resolves a skill tier against `data/skill_specs.json`; `skill_spec.py` is the spec schema. Rules and the spec DSL: `server/SKILLS.md`.
 - `data/skill_specs.json`: hand-curated spec per base skill of every hero up to card 38700. `data/enemy_skill_specs.json`: the 150 campaign-enemy skills that are not hero skills (same DSL). `data/leader_skill_specs.json`: the 12 leader skills with a shipped effect script. `data/skill_anims.json`: client skill scripts per animation, regenerated with `python3 -m tools.build_skill_anims`.
 - `sahht_server/store.py`: SQLite data only, no game rules; `transaction()` makes multi-step changes atomic. Tables `accounts`, `players` (uid = id + 10000, level), `cards` (`step` = evolution, `slot` 0-4 attack, 5-9 bench), `card_skills`, `player_state` (stamina, exp inside the level), `wallet`, `items`, `guide`, `cleared_buildings`, `building_steps`, `counters` (gacha draws, shop purchases with a daily/weekly period, formation, starter kit), `payments`.
@@ -126,7 +128,7 @@ Python 3 standard library only (no pip installs).
 
 ```
 cd server
-python3 -I -m unittest discover -s tests -t .          # 152 tests, about 50 s (scrypt dominates)
+python3 -I -m unittest discover -s tests -t .          # 364 tests, about 2 min (scrypt dominates)
 python3 -m tools.audit_scope                            # client modules, views, buttons, cities vs data/scope_2018.json (--draft)
 python3 -m sahht_server.skill_spec data/skill_specs.json data/enemy_skill_specs.json   # validate the skill specs
 python3 -m tools.audit_enemy_skills                      # enemy skill ids vs specs
@@ -183,9 +185,10 @@ Done and verified on the emulator:
 Not done (see also `server/README.md`):
 - Equipment covers enhance, sell, gacha, evolution, refining, splitting, tempering, enchanting, forging and fate binding, with suit bonuses in combat power (phase 2, progress in `docs/superpowers/specs/2026-11-24-phase-2-progress.md`). All their screens were verified on the emulator and views 25, 148, 131, 167, 182, 193 are open; tutorial team 2 has not been replayed. Item crafting, workshop, gems, pets and the rest of the gear are not done.
 - Phase 3 (combat) is implemented and tested in code: all 166 enemy skill ids, secondary stats in battle and combat power, the 5-skill swap, and 12 leader skills with the rage bar (progress in `docs/superpowers/specs/2026-11-25-phase-3-progress.md`). Emulator verification for the four sub-phases is still open.
-- Of the 96 leader-skill rows, the 83 passive nodes and the 15 skills whose effect script never shipped stay closed; `leader_skill.add_tree_point`/`wash_down`/`train_force` answer "Tính năng chưa mở.".
+- Leader skills (2026-11-26): the four trees the client draws are complete in code: 12 cast skills and 36 passive nodes (`leader_passives.py`, `leader_battle.py`, `data/leader_passive_specs.json`); `leader_skill.open` lists ready-to-learn nodes at level 0 (the scene shows no learn button otherwise). Trees 5-8 have no screen and stay closed, as do `leader_skill.add_tree_point`/`wash_down`/`train_force` (no screen calls them). Emulator verification is open.
+- Auto battle ("càn quét", 2026-11-26): `private_city.auto_recapture` and `clear_sweep_log` in `sweep.py`, view 107 open; done in code and tests, emulator verification is open (the client also requires vip >= 2).
 - Gems (branch G1-G2) are implemented and tested in code (tables `gems`, `gem_positions`; `sahht_server/gems.py`, `gem_actions.py`; 22 tests in `tests/test_gems.py`), emulator verification is open. Fate gems (G3, `gem_fate.*`) and `gem.upgrade` are not served. Placed gems are never spent by synthesis, resolve or evolution.
-- Phase 4 (2026-11-25): done and seen on the emulator: campaign difficulty, the activity hall, resource war, elite stages; done in code and tests: daily/extreme/exp challenges, survival (progress in `docs/superpowers/specs/2026-11-25-phase-4-progress.md`). Not done: campaign auto-sweep, Vùng Đất Vô Chủ (`public_land`, hall row 150), Roger treasure (`search_treasure`); the towers stay closed (they need `open_door`, `god_field` or are dated events).
+- Phase 4 (2026-11-25): done and seen on the emulator: campaign difficulty, the activity hall, resource war, elite stages; done in code and tests: daily/extreme/exp challenges, survival (progress in `docs/superpowers/specs/2026-11-25-phase-4-progress.md`). Not done: Vùng Đất Vô Chủ (`public_land`, hall row 150), Roger treasure (`search_treasure`); the towers stay closed (they need `open_door`, `god_field` or are dated events).
 - Gacha free draws; commander (phase 3 branch H) awaits project-owner approval.
 - The "Điểm thu hồi" achievement bar (`world_level`/`world_score`) stays at 0%; its source is unknown.
 - Everything outside phase 0 is closed through `data/scope_2018.json` (hidden or "Tính năng chưa mở.").

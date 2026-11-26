@@ -300,6 +300,7 @@ def item_stacks(svc: Services, uid: str) -> dict:
 def mark_user_login(req: Request, svc: Services, player: dict):
     ensure_starter(svc, player)
     ensure_starter_equipment(svc, player)
+    seed_guides(svc, player["uid"])   # accounts that cleared stages before a guide rule existed
     return ok({"mk": secrets.token_hex(8)})
 
 

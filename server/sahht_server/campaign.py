@@ -20,6 +20,7 @@ from .leader_skill import LeaderBook
 from .player import gain_exp, seed_guides
 from .progression import ACTIVE, SKILL_SLOTS, Rules
 from .rewards import Loot, client_cache, grant, merge_cache, roll
+from .shop import DAILY, period
 from .skills import SkillBook
 
 # A land cell covers 4x4 tiles of the city's tmx map; maps range from 20x20 to 28x32
@@ -215,6 +216,18 @@ def _land(plan: CityPlan, cleared, attackable) -> list:
     return rows
 
 
+def sweep_counter(building_id) -> str:
+    """Name of the counter holding a building's sweeps (auto battles) used today."""
+    return f"sweep:{building_id}"
+
+
+def _sweep_log(svc: Services, uid: str, buildings, now: int) -> dict:
+    """Building id -> sweeps used today, for the buildings of one city that have any."""
+    day = period(DAILY, now)
+    used = {str(b): svc.store.counter(uid, sweep_counter(b), day) for b in buildings}
+    return {b: n for b, n in used.items() if n}
+
+
 def _requested_building(req: Request, svc: Services):
     """(city, building_id, detail) for a building of the requested city, or None."""
     city, building = req.params.get("city", ""), req.params.get("building", "")
@@ -256,6 +269,7 @@ def city_open(req: Request, svc: Services, player: dict):
         "curt_regain": _regain(plan.buildings, cleared),
         # building -> 0-based steps already won; the client resumes at len(list)
         "recapture_log": {str(b): list(range(n)) for b, n in steps.items() if b in plan.buildings},
+        "sweep_log": _sweep_log(svc, player["uid"], plan.buildings, int(time.time())),
         "world_level": level, "world_score": score,
     })
 

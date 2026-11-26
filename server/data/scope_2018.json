@@ -950,8 +950,8 @@
    "reason": "bảng đặc quyền VIP chưa làm; giai đoạn 1"
   },
   "107": {
-   "open": false,
-   "reason": "bỏ mẹo VIP ở màn càn quét"
+   "open": true,
+   "reason": "nút càn quét (private_city.auto_recapture, sweep.py) cho công trình đã thu hồi"
   },
   "108": {
    "open": false,

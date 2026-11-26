@@ -24,6 +24,10 @@ FIRST_GUIDE_TEAM, FIRST_GUIDE_START, FIRST_GUIDE_DONE = "1", 1, 27
 # previous one is done. Each team's first and last step come from guide.config.
 GUIDE_CHAIN = ("1", "2", "3", "5")
 GUIDE_CITY_REACHED, GUIDE_BUILDING_CLEARED = 4, 3   # guide_team.config open_sort values
+# Hero evolution (button 502) opens when guide team 5 reaches step 501. The server opens it
+# as soon as stage 1-1's building is cleared and the first tutorial is done, by finishing
+# the team outright: no tutorial overlay, and no wait for the chain to reach team 5.
+EVOLUTION_TEAM, EVOLUTION_BUILDING = "5", 100001
 
 # Currencies the client reads from user_status; balances come from the wallet.
 CURRENCIES = (
@@ -114,6 +118,15 @@ def guide_steps(svc) -> dict:
     return steps
 
 
+def _open_evolution(svc, uid: str, guide: dict, steps: dict) -> None:
+    first_done = guide.get(FIRST_GUIDE_TEAM, 0) >= FIRST_GUIDE_DONE
+    last = steps.get(EVOLUTION_TEAM, (0, 0))[1]
+    if first_done and guide.get(EVOLUTION_TEAM, 0) < last \
+            and EVOLUTION_BUILDING in svc.store.cleared_buildings(uid):
+        svc.store.advance_guide(uid, EVOLUTION_TEAM, last)
+        guide[EVOLUTION_TEAM] = last
+
+
 def seed_guides(svc, uid: str) -> None:
     """Start the next main tutorial team once the previous one is done and its
     guide_team.config condition (city reached, building cleared) holds."""
@@ -122,6 +135,7 @@ def seed_guides(svc, uid: str) -> None:
                   for row in svc.configs.get("map_main_story").values() if isinstance(row, dict)}
     rules, steps = svc.configs.get("guide_team"), guide_steps(svc)
     guide = svc.store.guide(uid)
+    _open_evolution(svc, uid, guide, steps)
     for previous, team in zip(GUIDE_CHAIN, GUIDE_CHAIN[1:]):
         rule = rules.get(team)
         if team in guide or rule is None or team not in steps or previous not in steps:

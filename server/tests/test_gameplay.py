@@ -7,7 +7,7 @@ from sahht_server import (equipment, equipment_actions, equipment_enchant, equip
                           equipment_forge, equipment_refine, equipment_split)
 from sahht_server.handlers import Refused
 from sahht_server.rewards import Loot, grant
-from tests.test_flow import ServerCase
+from tests.test_flow import FIXTURE_CONFIGS, ServerCase
 
 
 class PlayerCase(ServerCase):
@@ -91,6 +91,12 @@ class LegacyAccountTests(ServerCase):
 
 
 class TutorialTests(PlayerCase):
+    def extra_configs(self):
+        return {"guide": {**FIXTURE_CONFIGS["guide"],
+                          "5": {str(i): {"guide_team": 5} for i in range(501, 504)}},
+                "guide_team": {**FIXTURE_CONFIGS["guide_team"],
+                               "5": {"guide_sort": 1, "open_sort": 3, "open_value": 103001}}}
+
     def test_guide_progress_only_moves_forward(self):
         self.assertEqual(self.call("user.guide", guide_team="1", guide_id="5")["status"], 0)
         self.call("user.guide", guide_team="1", guide_id="3")
@@ -104,7 +110,20 @@ class TutorialTests(PlayerCase):
         self.assertEqual(self.call("user.guide", guide_team="1", guide_id="26")["user_status"]["guide"],
                          {"1": 26})
         done = self.call("user.guide", guide_team="1", guide_id="27")["user_status"]["guide"]
-        self.assertEqual(done, {"1": 27, "2": 28})
+        self.assertEqual(done, {"1": 27, "2": 28, "5": 503})   # 5: hero evolution, see below
+
+    def test_hero_evolution_opens_with_stage_1_1_and_the_first_tutorial(self):
+        # Button 502 reads guide team 5 >= 501; the team is finished outright.
+        self.fight(100001)
+        self.assertNotIn("5", self.call("user.main_page")["user_status"]["guide"])
+        self.call("user.guide", guide_team="1", guide_id="27")
+        guide = self.call("user.main_page")["user_status"]["guide"]
+        self.assertEqual(guide["5"], 503)
+        self.assertEqual(guide["2"], 28)   # the tutorial chain is untouched
+
+    def test_hero_evolution_stays_closed_before_stage_1_1_is_cleared(self):
+        self.call("user.guide", guide_team="1", guide_id="27")
+        self.assertNotIn("5", self.call("user.main_page")["user_status"]["guide"])
 
     def test_rename_changes_the_show_name(self):
         self.assertEqual(self.call("user.rename", show_name="Ten%20Moi")["status"], 0)
