@@ -43,6 +43,15 @@ A list of tags, each `u32 type, u32 size`; the loader reads fields by type and i
 
 ## Commands (from `server/`)
 
+Find the cards of an animation:
+
+```
+python3 -I -c "import json,sys; d=json.load(open(sys.argv[1])); print([(k,v['name']) for k,v in d.items() if v.get('animation')==sys.argv[2]])" \
+  $SAHHT_DECOMPILED/apk/assets/config/character_detail.config <anim>
+```
+
+Pipeline, in this order (the poses are sized from the new armor):
+
 ```
 export SAHHT_DECOMPILED=~/Documents/SAHHT/decompiled
 python3 -m tools.sam_render <anim> list
@@ -53,11 +62,14 @@ python3 -m tools.art_kit export <anim> build/<anim>_kit
 #  save the AI sheet as build/<anim>_kit/redrawn/sheet_01.png
 python3 -m tools.art_kit import <anim> build/<anim>_kit build/<anim>_new/<anim>
 
-python3 -m tools.skill_sprites build/<kit>/generated build/<anim>_skill_sprites --parts build/<anim>_new/<anim>
-#  pose.png, explosion.png, missile.png in generated/
+python3 -m tools.skill_sprites build/<anim>_skill_kit/generated build/<anim>_skill_sprites --parts build/<anim>_new/<anim>
+#  pose.png, explosion.png, missile.png in that generated/ folder, not in the armor kit's redrawn/
+#  Iron Man's script; for another hero copy it to tools/<anim>_<skill>.py and change its constants
 python3 -m tools.ironman_missile_rain build/<out> --sprites build/<anim>_skill_sprites --parts build/<anim>_new/<anim>
 
-python3 -m tools.atlas <anim> <apk anim dir> build/<out>/parts build/<out>/new_frames.json build/<anim>_atlas
+#  new_frames.json is written by the build script: {label: frame name} of the frames to add
+python3 -m tools.atlas <anim> $SAHHT_DECOMPILED/apk/assets/iphonehd/anim build/<out>/parts build/<out>/new_frames.json build/<anim>_atlas
+mkdir -p build/tmp
 TMPDIR=$PWD/build/tmp python3 -m tools.patch_assets --apk build/device/installed.apk --out build/sahht-device.apk \
   assets/iphonehd/anim/<anim>.swf.sam=build/<out>/<anim>.swf.sam \
   assets/iphonehd/anim/<anim>.plist=build/<anim>_atlas/<anim>.plist \
@@ -76,14 +88,22 @@ TMPDIR=$PWD/build/tmp python3 -m tools.patch_assets --apk build/device/installed
 
 ```
 adb devices -l
-adb -s <id> shell pm path vn.sahht.sl
+adb -s <id> shell pm path vn.sahht.sl                          # prints package:<path>, drop the prefix
+mkdir -p build/device
 adb -s <id> pull "<that path>" /absolute/path/build/device/installed.apk
-apksigner verify --print-certs build/device/installed.apk      # compare with ~/.android/debug.keystore
+~/Android/Sdk/build-tools/<version>/apksigner verify --print-certs build/device/installed.apk
+#  the SHA-256 must equal the one of ~/.android/debug.keystore (keytool -list -v); apksigner is not on PATH
 adb -s <id> install -r build/sahht-device.apk                   # keeps the app's data
 adb -s <id> shell sha256sum "<new path>"                        # must equal sha256sum of the built file
 ```
 
-- The server URL of the installed APK: decrypt `assets/lua/game_version_config.lua` with `tools.patch_apk.decrypt` (key `aaa`) and read `SERVER_LIST_URL_NET`.
+- The server URL of the installed APK (`patch_apk.decrypt` has no command line):
+
+```
+python3 -I -c "import zipfile,sys; sys.path.insert(0,'.'); from tools import patch_apk as p; z=zipfile.ZipFile(sys.argv[1]); print([l for l in p.decrypt(z.read(p.CONFIG_ENTRY),p.LUA_KEY).decode().splitlines() if l.startswith('SERVER_LIST_URL')])" build/device/installed.apk
+```
+
+- The tools find the Android SDK in `~/Android/Sdk` (or `ANDROID_HOME`).
 - Rollback: `adb -s <id> install -r build/device/installed.apk`.
 - A signature mismatch means the app was signed with another key: stop and ask before uninstalling, that wipes the app's local data.
 - A new animation shows in a battle that uses it: for Iron Man the card `3800` and its ultimate `3830`.
