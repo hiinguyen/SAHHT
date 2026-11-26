@@ -76,7 +76,11 @@ def render_frame(animation: sam.Sam, display, parts_dir: Path, scale: float = 2.
     for char_id, _z, matrix, color in sorted(display.values(), key=lambda v: v[1]):
         if matrix is None or char_id not in names:
             continue
-        part = Image.open(parts_dir / names[char_id]).convert("RGBA")
+        path = parts_dir / names[char_id]
+        if not path.exists():  # the client skips frames missing from the atlas too
+            continue
+        with Image.open(path) as image:
+            part = image.convert("RGBA")
         if color is not None:
             part = _tint(part, color)
         layer = _place(part, matrix, size, scale)

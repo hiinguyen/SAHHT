@@ -54,6 +54,14 @@ class RenderTests(unittest.TestCase):
         self.assertEqual(self._pixel(frame, 30, 20), (255, 0, 0))
         self.assertNotEqual(self._pixel(frame, 20, 20), (255, 0, 0))
 
+    def test_part_missing_from_the_atlas_is_skipped_like_the_client_does(self):
+        animation = _animation()
+        animation.tags.insert(3, sam.Image(2, "gone.png"))
+        animation.tags.insert(5, sam.Place(char_id=2, depth=2, z=2, matrix=(1, 1, 0, 0, 5, 5)))
+        display = list(sam_render.frame_states(animation))[0]
+        frame = sam_render.render_frame(animation, display, Path(self.tmp.name), scale=1)
+        self.assertEqual(self._pixel(frame, 20, 20), (255, 0, 0))
+
     def test_color_form_multiplies_then_adds(self):
         part = Image.new("RGBA", (1, 1), (200, 100, 50, 255))
         out = sam_render._tint(part, sam.ColorForm(mult=(128, 256, 256, 256), add=(0, 0, 10, 0)))
