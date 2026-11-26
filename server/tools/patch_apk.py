@@ -26,6 +26,7 @@ _MASK = 0xFFFFFFFF
 
 URL_RE = re.compile(r"^https?://[A-Za-z0-9.\-]+(:\d{1,5})?(/[A-Za-z0-9._~\-/]*)?$")
 URL_LINE_RE = re.compile(r'^(SERVER_LIST_URL_(NET|CN)\s*=\s*)"[^"\n]*"', re.MULTILINE)
+PLAYBACK_SPEEDUP = 1.5
 # Fixes to client Lua bugs that the server cannot work around: entry -> [(shipped text, replacement)].
 # Each shipped text must occur exactly once, so a changed client fails loudly instead of silently.
 CLIENT_FIXES = {
@@ -100,6 +101,15 @@ CLIENT_FIXES = {
         ('        elseif(tempFlag == "reenter")then\n',
          '        elseif(tempFlag == "reenter" and self:shhhtAnimTab(tempFrameData.param.src) ~= nil)then\n'),
     ],
+    # Everything the client animates (battles, popups, scene changes, menus) runs on the cocos2d-x
+    # scheduler, so one time scale makes the whole game PLAYBACK_SPEEDUP times faster. The game's own
+    # hidden "reset speed" button used to restore 1, it now restores this scale.
+    "assets/lua/game.lua": [
+        ("function game.startup(self)\n",
+         "function game.startup(self)\n"
+         f"    CCDirector:sharedDirector():getScheduler():setTimeScale({PLAYBACK_SPEEDUP}) -- SAHHT: whole game {PLAYBACK_SPEEDUP}x faster\n")],
+    "assets/lua/game_pop/game_function_pop.lua": [
+        ("            s:setTimeScale(1)\n", f"            s:setTimeScale({PLAYBACK_SPEEDUP})\n")],
     "assets/lua/game_ui/game_pop_up_box.lua": [
         ('    local m_anim_node = ccbNode:nodeForName("m_anim_node");\n',
          '    if tableParams.onBuild then tableParams.onBuild(m_text_label:getParent(), m_text_label) end -- SAHHT\n'

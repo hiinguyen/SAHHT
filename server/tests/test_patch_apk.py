@@ -137,6 +137,22 @@ class ReenterUnlockTests(unittest.TestCase):
         self.assertIn("m_shhhtReenterUnlock", out)
 
 
+class PlaybackSpeedTests(unittest.TestCase):
+    def test_the_game_starts_with_the_faster_time_scale(self):
+        out = patch_apk.apply_client_fixes("assets/lua/game.lua", "function game.startup(self)\n    x()\n")
+        self.assertIn("getScheduler():setTimeScale(1.5)", out.split("x()")[0])
+
+    def test_the_reset_speed_button_restores_the_faster_time_scale(self):
+        out = patch_apk.apply_client_fixes("assets/lua/game_pop/game_function_pop.lua", "            s:setTimeScale(1)\n")
+        self.assertEqual(out, "            s:setTimeScale(1.5)\n")
+
+    @unittest.skipUnless(APK.is_file(), "original APK not present")
+    def test_applies_to_the_shipped_client(self):
+        with zipfile.ZipFile(APK) as z:
+            for entry in ("assets/lua/game.lua", "assets/lua/game_pop/game_function_pop.lua"):
+                patch_apk.apply_client_fixes(entry, patch_apk.decrypt(z.read(entry), b"aaa").decode())
+
+
 class ApkRewriteTests(unittest.TestCase):
     def _source_apk(self, path):
         with zipfile.ZipFile(path, "w") as z:
