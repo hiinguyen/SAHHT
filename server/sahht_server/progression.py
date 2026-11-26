@@ -43,6 +43,7 @@ class Rules:
         self.skill_levelup = configs.get("skill_levelup")
         self.combat_base = configs.get("combat_base") or dict.fromkeys(STATS, 0)
         self.combat_skill = configs.get("combat_skill")
+        self.break_control = configs.get("break_control")
         self.book = SkillBook.load(configs)
 
     @classmethod
@@ -108,6 +109,10 @@ class Rules:
         values = row.get(f"type{character.get('race', 0)}") or [0] * 5
         return {stat: int(v) for stat, v in zip(EVOLUTION_STATS, values)}
 
+    def break_hp_add(self, bre: int) -> float:
+        """Share of the hp a card at break level `bre` gains (break_control.config)."""
+        return self.break_control.get(str(bre), {}).get("hp_add", 0)
+
     # ---- skills ----------------------------------------------------------
 
     def skill_slots(self, character: dict, step: int, chosen=()) -> list:
@@ -162,7 +167,7 @@ class Rules:
             "id": card["id"], "c_id": card["c_id"], "lv": lv,
             "level_max": self.card_level_max(player_level),
             "exp": card["exp"], "pre_exp": self.card_pre_exp(character, lv),
-            "step": step, "evo": step, "bre": 0, "star": 0,
+            "step": step, "evo": step, "bre": card.get("bre", 0), "star": 0,
             "quality": character.get("quality", 0),
             # Server-side: the three skill slots this card casts in battle.
             "battle_slots": list(self.battle_slots(card)),
@@ -174,6 +179,8 @@ class Rules:
         for stat in STATS:
             doc[stat] = (character[f"base_{stat}"] + character[f"growth_{stat}"] * (lv - 1)
                          + bonus.get(stat, 0))
+        # The break level ("bre") scales the hp only, as the client's own stat preview does.
+        doc["hp"] = int(doc["hp"] * (1 + self.break_hp_add(doc["bre"])))
         progress = card.get("skills", {})
         for slot, skill_id, avail in self.skill_slots(character, step, self.battle_slots(card)):
             if skill_id == 0:

@@ -1,17 +1,18 @@
-"""Hero management: formation, experience transfer, skill upgrades, evolution, selling.
+"""Hero management: formation, experience transfer, skill upgrades, evolution, breakthrough, rebirth, selling.
 
 Each handler checks what the client's own screen checks (ownership, materials, levels,
 costs) before changing anything, applies the whole change in one transaction, and answers
 with `_client_cache_update`: the client never re-reads cards.open after these calls.
 """
 
+import time
 from collections import Counter
 
 from . import equipment, gems
 from .handlers import (FORMATION_COUNTER, Refused, Request, Services, alignment, fail,
                        formation_document, is_int, ok, owned_formations)
 from .progression import ACTIVE, BATTLE_SKILLS, LOCKED, SKILL_SLOTS, Rules
-from .rewards import client_cache, pay
+from .rewards import CARD, ITEM, Loot, client_cache, grant, merge_cache, pay
 from .store import ATTACK_SLOTS, BENCH_SLOTS
 
 INHERIT_RATE = 0.7          # game_hero_inherit: below VIP 1 a transfer keeps 70% of the exp
@@ -19,6 +20,8 @@ EMPTY = "-1"
 MAX_MATERIALS = 6           # evolution needs min(exp // 10, 6) material cards
 MAX_EVOLUTION_STEP = 100     # upper bound of the climb; the configs end it sooner
 UNIVERSAL_MATERIALS = range(1000, 1006)   # character_ID of the "any hero" evolution cards
+DEFAULT_HIGH_BREAK = 5       # character_break_new rows without a high_break (the client's default)
+MIN_REBIRTH_STEP = 4         # ui_chongsheng_scene: only a hero evolved four times can be reborn
 
 
 def _ids(req: Request, key: str) -> list:
@@ -390,6 +393,77 @@ def butcher(req: Request, svc: Services, player: dict):
     return ok({"get_food": food, "_client_cache_update": client_cache(svc, uid, removed_cards=ids)})
 
 
+# ---- breakthrough ("Chuyển sinh") -----------------------------------------------
+
+def _break_materials(svc, uid: str, major: dict, materials: list) -> tuple:
+    """(items to spend {id: count}, ids of the spare cards to spend) for one break step.
+    A card material is a copy of the named hero that is not the major, in the team or locked."""
+    items: dict = {}
+    spare_ids: list = []
+    pool = [c for c in svc.store.cards_for_player(uid)
+            if c["id"] != major["id"] and not _in_team(c) and not c.get("locked")]
+    for kind, ref, count in materials:
+        if kind == ITEM:
+            items[int(ref)] = items.get(int(ref), 0) + count
+            continue
+        if kind != CARD:
+            raise Refused("error_param", "Nguyên liệu không hợp lệ.")
+        copies = [c["id"] for c in pool if c["c_id"] == int(ref) and c["id"] not in spare_ids]
+        if len(copies) < count:
+            raise Refused("error_not_enough", "Nguyên liệu tiêu hao không đủ.")
+        spare_ids.extend(copies[:count])
+    return items, spare_ids
+
+
+def card_break(req: Request, svc: Services, player: dict):
+    """One break level for a hero (`cards.card_break`): needs the card level of
+    break_control and the materials of character_break_new; the break level raises the hp."""
+    uid, rules = player["uid"], Rules.load(svc.configs)
+    cards = _owned(svc, uid, [req.params.get("card_id", "")])
+    table = svc.configs.get("character_break_new").get(str(cards[0]["c_id"])) if cards else None
+    if table is None:
+        return fail("error_param", "Đồng đội không thể chuyển sinh.")
+    major = cards[0]
+    step = rules.break_control.get(str(major["bre"] + 1))
+    if major["bre"] >= table.get("high_break", DEFAULT_HIGH_BREAK) or step is None:
+        return fail("error_max_evo", "Đã đạt cấp chuyển sinh cao nhất.")
+    if major["lv"] < step["need_level"]:
+        return fail("error_level", f"Đồng đội cần cấp {step['need_level']} để chuyển sinh.")
+    items, spare_ids = _break_materials(svc, uid, major, table.get(f"material{major['bre'] + 1}", []))
+    with svc.store.transaction():
+        if not svc.store.change_items(uid, {i: -n for i, n in items.items()}):
+            raise Refused("error_not_enough", "Nguyên liệu tiêu hao không đủ.")
+        _consume(svc, uid, spare_ids)
+        svc.store.set_card_break(uid, major["id"], major["bre"] + 1)
+    return ok({"reward": {}, "_client_cache_update": client_cache(
+        svc, uid, cards=[major["id"]], removed_cards=spare_ids, items=list(items))})
+
+
+# ---- rebirth ("Tái sinh") -------------------------------------------------------
+
+def card_rebirth(req: Request, svc: Services, player: dict):
+    """Reset a hero evolved four times or more to level 1 without evolution and give back
+    what its evolutions cost: the food and, per step, the material cards as copies of the hero.
+    The break level stays."""
+    uid, rules = player["uid"], Rules.load(svc.configs)
+    cards = _owned(svc, uid, [req.params.get("card_id", "")])
+    if cards is None or cards[0]["step"] < MIN_REBIRTH_STEP or _in_team(cards[0]) \
+            or cards[0].get("locked"):
+        return fail("error_param", "Không thể tái sinh đồng đội này.")
+    card = cards[0]
+    character = rules.characters[str(card["c_id"])]
+    table = rules.evolution_table(character)
+    paid = [row for step in range(1, card["step"] + 1) if (row := table.get(str(step)))]
+    loot = Loot(cards=[card["c_id"]] * sum(_materials_needed(row) for row in paid))
+    if food := character.get("evo_food", 0) * len(paid):
+        loot.currencies["food"] = food
+    with svc.store.transaction():
+        svc.store.reset_card(uid, card["id"])
+        granted = grant(svc, uid, loot, int(time.time()))
+    reborn = client_cache(svc, uid, cards=[card["id"]])
+    return ok({"reward": granted.reward, "_client_cache_update": merge_cache(granted.cache, reborn)})
+
+
 # ---- battle skill selection (5-skill heroes) ------------------------------------
 
 def _skill_documents(rules: Rules, card: dict, player_level: int) -> list:
@@ -442,6 +516,8 @@ HANDLERS = {
     ("api", "cards.card_evolution"): evolution,
     ("api", "cards.auto_evolution"): auto_evolution,
     ("api", "cards.butcher"): butcher,
+    ("api", "cards.card_break"): card_break,
+    ("api", "cards.card_rebirth"): card_rebirth,
     ("api", "cards.select_skill_index"): select_skill_index,
     ("api", "cards.set_battle_skill"): set_battle_skill,
     ("api", "cards.unlock_skill"): unlock_skill,

@@ -205,11 +205,15 @@ CREATE TABLE IF NOT EXISTS elite_done (
 );
 """
 
+_CARD_BREAK = """
+ALTER TABLE cards ADD COLUMN bre INTEGER NOT NULL DEFAULT 0;
+"""
+
 # Applied in order; PRAGMA user_version is how many are applied. Migration 1 is the
 # original schema (IF NOT EXISTS), so a database from before migrations is upgraded in
 # place. Never edit an applied migration: append a new one.
 MIGRATIONS = (_SCHEMA, _PAYMENTS, _CARD_LOCK, _EQUIPMENT, _EQUIPMENT_EXTRA, _BATTLE_SKILLS,
-              _LEADER_SKILLS, _GEMS, _ACTIVE_RUNS, _ELITE)
+              _LEADER_SKILLS, _GEMS, _ACTIVE_RUNS, _ELITE, _CARD_BREAK)
 
 
 def _statements(script: str) -> list[str]:
@@ -357,7 +361,7 @@ class Store:
     def cards_for_player(self, uid: str) -> list[dict]:
         """Every card of the player with its skill progress: skills = {slot: (lv, exp)}.
         `battle_slots` is the three skill slots the card brings to a battle."""
-        rows = self._all("SELECT id, c_id, lv, exp, step, slot, locked FROM cards "
+        rows = self._all("SELECT id, c_id, lv, exp, step, bre, slot, locked FROM cards "
                          "WHERE player_id = ? ORDER BY id", (_pid(uid),))
         skills = {}
         for s in self._all("SELECT s.card_id, s.slot, s.lv, s.exp FROM card_skills s "
@@ -437,6 +441,20 @@ class Store:
         with self.transaction():
             self._db.execute("UPDATE cards SET lv = ?, exp = ?, step = ? "
                              "WHERE id = ? AND player_id = ?", (lv, exp, step, int(card_id), _pid(uid)))
+
+    def set_card_break(self, uid: str, card_id: str, bre: int) -> None:
+        with self.transaction():
+            self._db.execute("UPDATE cards SET bre = ? WHERE id = ? AND player_id = ?",
+                             (bre, int(card_id), _pid(uid)))
+
+    def reset_card(self, uid: str, card_id: str) -> None:
+        """Back to a fresh card: level 1, no exp, no evolution, skills at their first tier.
+        The break level stays."""
+        with self.transaction():
+            self._db.execute("UPDATE cards SET lv = 1, exp = 0, step = 0 "
+                             "WHERE id = ? AND player_id = ?", (int(card_id), _pid(uid)))
+            self._db.execute("DELETE FROM card_skills WHERE card_id = ?", (int(card_id),))
+            self._db.execute("DELETE FROM battle_skill_slots WHERE card_id = ?", (int(card_id),))
 
     def set_card_locked(self, uid: str, card_id: str, locked: bool) -> bool:
         """Lock or unlock a card the player owns; False when it is not theirs."""

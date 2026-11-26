@@ -44,6 +44,7 @@ class MigrationTests(unittest.TestCase):
         db.execute("DROP TABLE payments")
         db.execute("ALTER TABLE cards DROP COLUMN locked")   # schema before migration 3
         db.execute("ALTER TABLE equipment DROP COLUMN extra")  # before migration 5
+        db.execute("ALTER TABLE cards DROP COLUMN bre")        # before migration 11
         db.execute("PRAGMA user_version = 0")
         db.commit()
         db.close()

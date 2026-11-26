@@ -902,8 +902,8 @@
    "reason": "không nơi nào trong Lua gọi view này"
   },
   "44": {
-   "open": false,
-   "reason": "Chuyển sinh đồng đội (menu game_function_pop.lua); giai đoạn 5"
+   "module": "cards",
+   "reason": "Chuyển sinh đồng đội (menu game_function_pop.lua): cards.card_break"
   },
   "45": {
    "open": false,
@@ -1002,8 +1002,8 @@
    "reason": "nút thẻ tháng; giai đoạn 1"
   },
   "128": {
-   "open": false,
-   "reason": "Tái sinh đồng đội (menu game_function_pop.lua); giai đoạn 5"
+   "module": "cards",
+   "reason": "Tái sinh đồng đội (menu game_function_pop.lua): cards.card_rebirth"
   },
   "129": {
    "module": "gem",
