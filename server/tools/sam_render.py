@@ -92,16 +92,26 @@ def render_frame(animation: sam.Sam, display, parts_dir: Path, scale: float = 2.
     return canvas
 
 
+def render_frames(animation: sam.Sam, section: str, parts_dir: Path, scale: float = 2.0, window=None):
+    """The frames of one section of a loaded animation."""
+    ranges = animation.sections()
+    if section not in ranges:
+        raise SystemExit("no section %r; has: %s" % (section, ", ".join(ranges)))
+    first, last = ranges[section]
+    displays = list(frame_states(animation))
+    return [render_frame(animation, displays[i], parts_dir, scale, window) for i in range(first, last + 1)]
+
+
 def render_section(name: str, section: str, anim_dir: Path = ANIM_DIR, parts_dir: Path = PARTS_DIR,
                    scale: float = 2.0, parts: Path = None, window=None):
     animation = sam.load(str(anim_dir / (name + ".swf.sam")))
-    ranges = animation.sections()
-    if section not in ranges:
-        raise SystemExit("no section %r in %s; has: %s" % (section, name, ", ".join(ranges)))
-    first, last = ranges[section]
-    displays = list(frame_states(animation))
-    frames = [render_frame(animation, displays[i], parts or parts_dir / name, scale, window) for i in range(first, last + 1)]
+    frames = render_frames(animation, section, parts or parts_dir / name, scale, window)
     return frames, animation.tags[0].fps
+
+
+def save_gif(frames, fps: float, path) -> None:
+    rgb = [f.convert("RGB") for f in frames]
+    rgb[0].save(path, save_all=True, append_images=rgb[1:], loop=0, duration=int(1000 / fps))
 
 
 def main(argv=None):
@@ -126,8 +136,7 @@ def main(argv=None):
     if args.out.endswith(".png"):
         frames[args.frame].save(args.out)
     else:
-        rgb = [f.convert("RGB") for f in frames]
-        rgb[0].save(args.out, save_all=True, append_images=rgb[1:], loop=0, duration=int(1000 / fps))
+        save_gif(frames, fps, args.out)
     return 0
 
 

@@ -156,6 +156,17 @@ def _color_for(item: Item) -> Optional[sam.ColorForm]:
     return sam.ColorForm(mult=mult, add=item.color.add if item.color else None)
 
 
+NEUTRAL_COLOR = sam.ColorForm(mult=(OPAQUE,) * 4)
+
+
+def _color_change(before: Optional[sam.ColorForm], after: Optional[sam.ColorForm]) -> Optional[sam.ColorForm]:
+    """What a move must carry so the client ends up with `after`: a move without a color form keeps
+    the old one, so going back to no tint needs an explicit neutral form."""
+    if after == before:
+        return None
+    return after if after is not None else NEUTRAL_COLOR
+
+
 def compile_section(label: str, timeline: Timeline) -> List[sam.Tag]:
     """Tags for the section: a full place when a depth appears, a move when it only changes."""
     tags: List[sam.Tag] = [sam.Label(label)]
@@ -172,7 +183,7 @@ def compile_section(label: str, timeline: Timeline) -> List[sam.Tag]:
                                       color=color))
             elif before != item:
                 tags.append(sam.Place(char_id=0, depth=depth, z=item.z, matrix=to_tag(item.matrix),
-                                      color=color if color != _color_for(before) else None))
+                                      color=_color_change(_color_for(before), color)))
             shown[depth] = item
         tags.extend(sam.Anchor(text) for text in timeline.anchors.get(frame, []))
         tags.append(sam.Show())

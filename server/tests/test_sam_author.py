@@ -117,6 +117,14 @@ class CompileTests(unittest.TestCase):
         place = [t for t in au.compile_section("x", timeline) if isinstance(t, sam.Place)][-1]
         self.assertEqual(place.color.mult[3], 0)
 
+    def test_returning_to_opaque_resets_the_tint_on_the_client(self):
+        timeline = au.Timeline(4)
+        timeline.track(1, 7, 1, {0: {"alpha": 0}, 1: {"alpha": 256}, 3: {"alpha": 256}}, ease=au.linear)
+        frames = _state_after(au.compile_section("x", timeline))
+        self.assertEqual(frames[0][1][3].mult[3], 0)
+        self.assertEqual(frames[1][1][3].mult, (256, 256, 256, 256))
+        self.assertEqual(frames[2][1][3].mult, (256, 256, 256, 256))
+
     def test_output_survives_the_byte_format(self):
         animation = sam.Sam([sam.Handle(10, 10, 24.0, 4), sam.Image(7, "a.png")]
                             + au.compile_section("boom", self._timeline()) + [sam.End()])
