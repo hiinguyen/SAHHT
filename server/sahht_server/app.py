@@ -6,14 +6,16 @@ import json
 import re
 import sys
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
 from . import (active, arena, campaign, cards, config_overrides, elite, equip_gacha,
                equipment_actions, equipment_enchant, equipment_fate, equipment_forge,
-               equipment_refine, equipment_split, gacha, gem_actions, gm_api, handlers,
-               item_use, leader_skills, mail, payment, quests, ranking, shop, sweep, welfare)
+               equipment_refine, equipment_split, gacha, gem_actions, gm_api, grow_plan,
+               handlers, item_use, leader_skills, mail, online, payment, quests, ranking,
+               shop, supply, sweep, welfare)
 from . import scope as scope_module
 from .player import user_status
 from .handlers import ConfigCache, Request, Services
@@ -27,6 +29,7 @@ SESSION_HANDLERS = {**handlers.SESSION_HANDLERS, **active.HANDLERS, **arena.HAND
                     **equipment_enchant.HANDLERS, **equipment_fate.HANDLERS,
                     **equipment_forge.HANDLERS, **equipment_refine.HANDLERS,
                     **equipment_split.HANDLERS, **gacha.HANDLERS, **gem_actions.HANDLERS,
+                    **grow_plan.HANDLERS, **supply.HANDLERS,
                     **item_use.HANDLERS, **mail.HANDLERS, **quests.HANDLERS, **welfare.HANDLERS,
                     **leader_skills.HANDLERS, **shop.HANDLERS, **sweep.HANDLERS,
                     **payment.HANDLERS}
@@ -157,6 +160,7 @@ class GameHandler(BaseHTTPRequestHandler):
         # (an error status) never keeps a partial change.
         try:
             with svc.store.transaction():
+                online.touch(svc, player["uid"], int(time.time()))
                 body = handler(req, svc, player)
                 if body.get("status") != 0:
                     raise handlers.Refused.of(body)

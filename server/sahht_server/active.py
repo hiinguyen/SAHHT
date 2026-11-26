@@ -21,7 +21,7 @@ import random
 import time
 from datetime import datetime
 
-from . import campaign, survival
+from . import campaign, supply, survival
 from .battle import WIN
 from .handlers import Refused, Request, Services, fail, is_int, ok, team_combat
 from .player import vip_level
@@ -101,7 +101,7 @@ def active_index(req: Request, svc: Services, player: dict):
     return ok({
         "month_award": MONTH_WEEK_AWARD, "week_award": MONTH_WEEK_AWARD, "world_boss": 0,
         "index": {str(c): chapter_index(svc, uid, c, now) for c in chapters.values()},
-        "gift_reward": {},
+        "gift_reward": supply.gift_reward(svc, uid, now),
         "active_forever": survival.snapshot(svc, uid, now),
     })
 

@@ -82,6 +82,7 @@ class Battle(LeaderCasts):
         default = formation_layout(DEFAULT_FORMATION)
         self.layouts = layouts or (default, default)
         self.frames = []
+        self._open = []     # casts resolving whose frame is not written yet
         self.round = 1
         self._init_leaders(leaders, mods)
 
@@ -355,7 +356,11 @@ class Battle(LeaderCasts):
 
     def _perform(self, cast):
         """Cast a skill: resolve its effects, then emit its frame and settle the results."""
-        self._resolve(cast)
+        self._open.append(cast)
+        try:
+            self._resolve(cast)
+        finally:
+            self._open.pop()
         if not cast.caster.alive and cast.skill.trigger != "on_death":
             self._emit_hp(cast.changed)
             self._settle_deaths(cast)
@@ -412,8 +417,12 @@ class Battle(LeaderCasts):
             self._react(caster, "on_attack", victims[0], normal=cast.normal)
 
     def _settle_deaths(self, cast):
+        # A reaction fires while the cast it interrupts is still unwritten. Its victims are already at
+        # 0 HP but the client has not seen the hit: announcing the death first makes it drop the sprite
+        # and then play the hit on it, which crashes the native HP bar. Their cast reports them.
+        held = {pos for open_cast in self._open for pos in open_cast.changed}
         for unit in self.units:
-            if unit.hp <= 0 and not unit.dead:
+            if unit.hp <= 0 and not unit.dead and unit.pos not in held:
                 self._die(unit, cast.caster, cast.depth)
 
     def _die(self, unit, killer, depth):

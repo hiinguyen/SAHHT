@@ -141,6 +141,21 @@ class ReactionTests(unittest.TestCase):
         self.assertEqual(frames[0]["param"]["hurt"], [100])
         self.assertNotIn(100, [p["src"] for p in flags(frames, "skill")][:1])
 
+    def test_a_reaction_inside_a_cast_does_not_announce_deaths_before_the_cast_frame(self):
+        # Unit 100 dies to the first hit of the sweep; unit 101's before_hit reaction runs while
+        # the sweep's frame is still unwritten. A `death` ahead of the `skill` frame makes the
+        # client drop the sprite and then play the hit on it, which crashes the native bar.
+        sweep = skill([dict(DAMAGE, target="target")], aim="enemy_all", skill_id=77)
+        ward = skill([{"op": "buff", "target": "self", "stat": "def", "value": 10, "rounds": 2}],
+                     trigger="before_hit", skill_id=78)
+        _, frames = run([unit(0, patk=1000, speed=500, skills=[sweep])],
+                        [unit(100, hp=10), unit(101, hp=10**6, skills=[ward])])
+        names = [(f["flag"], f["param"] if f["flag"] == "death" else None) for f in frames]
+        cast = next(i for i, f in enumerate(frames)
+                    if f["flag"] == "skill" and f["param"]["skillid"] == 77)
+        self.assertLess(cast, names.index(("death", 100)))
+        self.assertTrue(any(f["flag"] == "skill" and f["param"]["skillid"] == 78 for f in frames[:cast + 3]))
+
     def test_revive_on_death_reenters_with_hp(self):
         rebirth = skill([{"op": "revive", "scale": 50}], trigger="on_death", once=True)
         winer, frames = run([unit(0, patk=1000)], [unit(100, hp=100, patk=0, skills=[rebirth])])

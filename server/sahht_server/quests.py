@@ -7,19 +7,20 @@ four boxes of diaryscore.config. Achievements (reward_once.config) are derived f
 state (level, recaptured cities) and claimed once (lifetime counter `once:<id>`). The bounty
 list (wanted.config) lists every unclaimed id: for the client an absent id is a claimed one.
 
-Online-time rows exist in the client's table but nothing feeds them yet, so they stay at
-state 0 and their view stays closed.
+Online-time rows (sort 79) are fed by `online.py`. Arena-rank rows (sort 69) wait for an
+arena: nothing ranks players yet, so they stay pending (the last arena row is a level goal).
 """
 
 import time
 
-from . import campaign
+from . import campaign, online
 from .handlers import ALERT_PROVIDERS, Request, Services, fail, ok
 from .rewards import Loot, grant
 from .quest_events import LIVE_SORTS, counter_name, record  # noqa: F401 (record re-exported)
 from .shop import DAILY, period
 
-ONCE_LEVEL, ONCE_RECAPTURE = 1, 2
+ONCE_LEVEL, ONCE_RECAPTURE, ONCE_ONLINE = 1, 2, 79
+ONCE_SORTS = (ONCE_LEVEL, ONCE_RECAPTURE, ONCE_ONLINE)   # the sorts with a source of progress
 WANTED_RECAPTURE = 100
 MAX_SCORE = 100
 BOXES = 4
@@ -111,6 +112,8 @@ def _once_value(svc: Services, uid: str, level: int, row: dict) -> int:
         return level
     if sort == ONCE_RECAPTURE:
         return _recaptured(svc, uid, target)
+    if sort == ONCE_ONLINE:
+        return online.seconds(svc, uid)
     return 0
 
 
@@ -123,7 +126,7 @@ def _once_result(svc: Services, uid: str) -> dict:
         if svc.store.counter(uid, f"once:{key}"):
             state = STATE_CLAIMED
         else:
-            reachable = row.get("target_sort") in (ONCE_LEVEL, ONCE_RECAPTURE)
+            reachable = row.get("target_sort") in ONCE_SORTS
             state = STATE_READY if reachable and value >= need else STATE_PENDING
         result[key] = [value, need, state]
     return result
